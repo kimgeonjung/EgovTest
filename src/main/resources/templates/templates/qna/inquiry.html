@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>문의하기</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/notice.css">
+  <link rel="stylesheet" href="/css/header.css">
+  <link rel="stylesheet" href="/css/footer.css">
+</head>
+<body>
+<th:block th:replace="/layout/header :: headerLayout"></th:block>
+<div class="ft">
+  <div class="container">
+    <!-- 페이지 제목 -->
+    <div class="main-tihome">
+      <h1 class="main-title">문의사항</h1>
+      <div class="main-home">
+        <a href="/"  title="메인 페이지로 이동">
+          <i class="fas fa-home"></i> <!-- 홈 아이콘 -->
+        </a>
+      </div>
+    </div>
+    <div class="split--div-post"></div> <!-- 구분선 -->
+
+    <h1 class="count"> 총 0건</h1>
+
+    <!-- 공지사항 목록을 표시하는 테이블 -->
+    <table class="post-table">
+      <thead>
+      <tr class="post-tbody-tr">
+        <!-- 테이블 헤더: 번호, 제목, 작성일, 답변 -->
+        <th>번호</th>
+        <th>제목</th>
+        <th>작성일</th>
+        <th>답변</th>
+      </tr>
+      </thead>
+      <tbody class="post-tbody-tr1">
+      <th:block  th:if="${#lists.size(inquiries)} > 0" th:each="inquiry, stat : ${inquiries}">
+        <tr class="post-tbody-tr2" th:id="${inquiry.id}" th:classappend="${#strings.equals(inquiry.endYn, 'Y')} ? 'completed' : ''">
+          <td th:text="${#lists.size(posts) - (inquiries.pageable.pageNumber * 10) - stat.index}"></td>
+          <td class="title"><a href="/qna/inquiryDetail?id=" th:attrappend="href=${inquiry.id}" th:text="${inquiry.title}"></a></td>
+          <td th:text="${#temporals.format(inquiry.created_at, 'yyyy-MM-dd HH:mm:ss')}"></td>
+          <td th:text="${#strings.equals(inquiry.endYn, 'Y') ? '문의 종료' : (#strings.equals(inquiry.state, 'Q') ? '대기중' : '답변 완료')}"></td>
+        </tr>
+      </th:block>
+      </tbody>
+    </table>
+    <a href="/qna/inquiryInsertForm" class="write-button">문의하기</a>
+  </div>
+  <!-- 페이징 -->
+  <div th:if="${inquiries != null and !inquiries.isEmpty()}">
+    <!-- 전역 변수 선언 -->
+    <nav
+            th:with="pageNumber = ${inquiries.pageable.pageNumber}, pageSize = ${inquiries.pageable.pageSize},totalPages = ${inquiries.totalPages},startPage = ${T(java.lang.Math).floor(pageNumber / pageSize) * pageSize + 1},tempEndPage = ${startPage + pageSize - 1},endPage = (${tempEndPage < totalPages ? tempEndPage : totalPages})"
+            aria-label="Page navigation"
+    >
+      <ul class="pagination">
+        <!-- 처음으로 이동 -->
+        <li th:classappend="${pageNumber < pageSize} ? 'disabled'" class="page-item">
+          <a class="page-link" th:href="@{/qna/inquiry(page=0)}">
+            <span>&laquo;</span>
+            <span class="sr-only">First</span>
+          </a>
+        </li>
+
+        <!-- 이전으로 이동 -->
+        <li th:classappend="${inquiries.first} ? 'disabled'" class="page-item">
+          <a class="page-link" th:href="${inquiries.first} ? '#' : @{/qna/inquiry(page=${pageNumber - 1})}" aria-label="Previous">
+            <span aria-hidden="true">&lt;</span>
+            <span class="sr-only">Previous</span>
+          </a>
+        </li>
+
+        <!-- 특정 페이지로 이동 -->
+        <li th:each="page: ${#numbers.sequence(startPage, endPage)}" th:classappend="${page == pageNumber + 1} ? 'active'" class="page-item">
+          <a th:text="${page}" class="page-link" th:href="@{/qna/inquiry(page=${page - 1})}"></a>
+        </li>
+
+        <!-- 다음으로 이동 -->
+        <li th:classappend="${inquiries.last} ? 'disabled'" class="page-item">
+          <a class="page-link" th:href="${inquiries.last} ? '#' : @{/qna/inquiry(page=${pageNumber + 1})}" aria-label="Next">
+            <span aria-hidden="true">&gt;</span>
+            <span class="sr-only">Next</span>
+          </a>
+        </li>
+
+        <!-- 마지막으로 이동 -->
+        <li th:classappend=" ${T(java.lang.Math).floor(totalPages / pageSize) * pageSize - 1 <= startPage} ? 'disabled'" class="page-item">
+          <a class="page-link" th:href="@{/qna/inquiry(page=${totalPages - 1})}">
+            <span>&raquo;</span>
+            <span class="sr-only">Last</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div> <!-- /container -->
+</div>
+<script th:src="@{/js/inquiry.js}"></script>
+<div class="footers"></div> <!-- 이거 지우면 안됨 -->
+<th:block th:replace="/layout/footer :: footerLayout"></th:block>
+</body>
+</html>
