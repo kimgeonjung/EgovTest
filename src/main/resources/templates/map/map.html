@@ -1,169 +1,1615 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>문의하기</title>
-  <link rel="stylesheet" href="/css/ol.css">
-  <link rel="stylesheet" href="/css/header.css">
-  <link rel="stylesheet" href="/css/footer.css">
-  <script type="text/javascript" th:src="@{/js/ol.js}"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>기본 지도</title>
+    <!-- Leaflet CSS 파일 포함 -->
+    <link rel="stylesheet" href="/css/mapOptionLayer.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script type="text/javascript"
+            src="https://map.vworld.kr/js/vworldMapInit.js.do?version=2.0&apiKey=8A69FB7A-6E07-3B76-B2F2-1D1FEF0E5781"></script>
+    <script src="https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.3.0/build/ol.js"></script>
+    <script src="https://code.jquery.com/jquery-2.2.3.min.js"></script>
+    <script src="https://map.vworld.kr/jquery/ol3/jquery-1.11.3.min.js" async></script>
+    <style>
+        /* 지도 크기 설정 */
+        #map {
+            height: 950px; /* 지도 높이 */
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            background-color: #fff; /* 배경색 */
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); /* 테이블에 그림자 추가 */
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #4CAF50;  /* 헤더 배경색 */
+            color: white; /* 헤더 텍스트 색 */
+            font-weight: bold;
+        }
+
+        td {
+            font-size: 14px; /* 내용 텍스트 크기 */
+            color: #333;  /* 텍스트 색 */
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2; /* 짝수 행 배경색 */
+        }
+
+        tr:hover {
+            background-color: #ddd;  /* 마우스를 올렸을 때 배경색 변경 */
+            cursor: pointer;
+        }
+
+        table th, table td {
+            text-align: center; /* 기본적으로 텍스트 가운데 정렬 */
+        }
+
+        table td {
+            word-wrap: break-word; /* 긴 텍스트가 있을 경우 자동으로 줄바꿈 */
+        }
+    </style>
 </head>
 <body>
-<th:block th:replace="/layout/header :: headerLayout"></th:block>
+<!-- 지도 표시할 요소 -->
 <div class="ft">
-  <div id="map" style="width: 100%; height: 600px;"></div>
-  <div id="map_text"></div>
-  <div id="subway"></div>
-  <div id="map_position"></div>
-  <div id="population_text"></div>
-
-  <div>
-    <label for="wmsLayerCheckbox">WMS Layer 표시:</label>
-    <input type="checkbox" id="wmsLayerCheckbox">
-  </div>
-  <div>
-    <label for="populationCheckbox">인구 표시:</label>
-    <input type="checkbox" id="populationCheckbox">
-  </div>
-  <div>
-    <label for="subwayCheckbox">지하철</label>
-    <input type="checkbox" id="subwayCheckbox">
-  </div>
+    <!--  <input type="hidden" th:value="${id}" id='hidden-map'> !-->
+    <div class="main-map">
+        <div class="map" id="map"><!--th:id="${id}" !-->
+            <th:block th:replace="layout/mapLayout :: mapLayout"></th:block>
+        </div>
+    </div>
 </div>
+<div id="scale-line"></div>
+<!-- Leaflet JS 파일 포함 -->
+<script th:src="${scriptPath}" th:text="${scriptPath}"></script>
+
+<!-- Leaflet JS 파일 포함 -->
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
-    // OpenLayers Map 객체 생성
-    var map = new ol.Map({
-      target: 'map', // map div에 지도 표시
-      layers: [
-        new ol.layer.Tile({
-          source: new ol.source.OSM()  // OpenStreetMap 배경 지도
-        }), // 0번
-        new ol.layer.Tile({
-          source: new ol.source.TileWMS({
-            url: 'http://localhost:8080/geoserver/ne/wms',  // GeoServer WMS URL, 자기 설정으로 수정  http://localhost:포트번호/geoserver/저장소/wms
-            params: {
-              'LAYERS': 'ne:test',  // 사용하려는 레이어 이름
-              'TILED': true,
-              'FORMAT': 'image/png',
-              'SRS': 'EPSG:4326'  // 좌표계 설정
-            },
-            serverType: 'geoserver'
-          }),
-          visible: false  // 기본적으로 WMS 레이어가 보이지 않도록 설정
-        }),  //1번
-        new ol.layer.Tile({
-          source: new ol.source.TileWMS({
-            url: 'http://localhost:8080/geoserver/ne/wms',  // GeoServer WMS URL
-            params: {
-              'LAYERS': 'ne:population',  // 사용하려는 레이어 이름
-              'TILED': true,
-              'FORMAT': 'image/png',
-              'SRS': 'EPSG:4326'  // 좌표계 설정
-            },
-            serverType: 'geoserver'
-          }),
-          visible: false,  // 기본적으로 레이어가 보이지 않도록 설정
-          opacity: 0.8,  // 80% 투명도
-          zIndex: 90
-        }), // 2번 인구 데이터
-        new ol.layer.Tile({
-          source: new ol.source.TileWMS({
-            url: 'http://localhost:8080/geoserver/ne/wms',  // GeoServer WMS URL
-            params: {
-              'LAYERS': 'ne:subway',  // 사용하려는 레이어 이름
-              'TILED': true,
-              'FORMAT': 'image/png',
-              'SRS': 'EPSG:4326'  // 좌표계 설정
-            },
-            serverType: 'geoserver'
-          }),
-          visible: false,  // 기본적으로 레이어가 보이지 않도록 설정
-          opacity: 1,
-          zIndex: 100
-        })
-      ],
-      view: new ol.View({
-        projection: 'EPSG:4326',  // 지도 좌표계 설정
-        center: [126.978, 37.566],  // 서울의 경도, 위도 좌표
-        zoom: 11,  // 기본 줌 레벨
-        minZoom: 1, // 최소 줌 레벨 설정
-        maxZoom: 15, // 최대 줌 레벨 설정
-      })
+
+    const vworldKey = '8A69FB7A-6E07-3B76-B2F2-1D1FEF0E5781';
+
+    document.addEventListener("DOMContentLoaded", function () {
+        // 모든 상위 메뉴 항목을 선택
+        const menuItems = document.querySelectorAll(".submenu-item");
+
+        menuItems.forEach((menuItem) => {
+            // 다음 형제 요소가 <ul>인지 확인
+            const submenu = menuItem.nextElementSibling;
+
+            if (submenu && submenu.tagName === "UL") {
+                // 하위 메뉴의 <li> 개수 카운트
+                const itemCount = submenu.querySelectorAll("li").length;
+
+                // 카운트 뱃지 생성
+                const badge = document.createElement("span");
+                badge.className = "menu-badge";
+                badge.textContent = itemCount;
+
+                // 메뉴 항목에 뱃지를 추가
+                menuItem.appendChild(badge);
+            }
+        });
     });
 
-    // 체크박스를 클릭할 때 레이어의 가시성 토글
-    var wmsLayerCheckbox = document.getElementById('wmsLayerCheckbox');
-    wmsLayerCheckbox.addEventListener('change', function() {
-      var wmsLayer = map.getLayers().item(1); // WMS 레이어
-      wmsLayer.setVisible(wmsLayerCheckbox.checked);  // 체크된 상태에 따라 레이어 표시/숨기기
+    const draggableList = document.getElementById('draggable-checkbox-list'); // 드래그 가능한 리스트 요소 가져오기
+    let draggedItem = null; // 드래그 중인 항목
+    let placeholder = null; // 플레이스홀더 요소
+    let layer_list = [];
+    // 카테고리 버튼과 리스트 요소 가져오기
+    const categoryButtons = document.querySelectorAll('#category-button button');
+    const submenuList = document.querySelectorAll('#submenu-list li'); // list의 항목들
+    const submenuList2 = document.querySelectorAll('#submenu-list2 li'); // list2의 항목들
+
+    let activeTab = 'list'; // 기본값: list
+    let category = 'all';
+
+    // 카테고리 버튼 클릭 이벤트 추가
+    categoryButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            category = button.id.replace('category-', '');
+
+            switch (activeTab) {
+                case 'list':
+                    switch (category) {
+                        case 'all':
+                            submenuList.forEach((li) => li.classList.remove('hidden'));
+                            break;
+                        case 'library':
+                            submenuList.forEach((li) => {
+                                if (
+                                    li.id.includes('library') ||
+                                    li.id.includes('population') ||
+                                    li.id.includes('floating-population')
+                                ) {
+                                    li.classList.remove('hidden');
+                                } else {
+                                    li.classList.add('hidden');
+                                }
+                            });
+                            break;
+                        case 'wifi':
+                            submenuList.forEach((li) => {
+                                if (
+                                    li.id.includes('wifi') ||
+                                    li.id.includes('population') ||
+                                    li.id.includes('floating-population')
+                                ) {
+                                    li.classList.remove('hidden');
+                                } else {
+                                    li.classList.add('hidden');
+                                }
+                            });
+                            break;
+                        case 'issuingMachine':
+                            submenuList.forEach((li) => {
+                                if (
+                                    li.id.includes('issuingMachine') ||
+                                    li.id.includes('population') ||
+                                    li.id.includes('floating-population')
+                                ) {
+                                    li.classList.remove('hidden');
+                                } else {
+                                    li.classList.add('hidden');
+                                }
+                            });
+                            break;
+                        case 'shade':
+                            submenuList.forEach((li) => {
+                                if (
+                                    li.id.includes('shade') ||
+                                    li.id.includes('population') ||
+                                    li.id.includes('traffic') ||
+                                    li.id.includes('floating-population')
+                                ) {
+                                    li.classList.remove('hidden');
+                                } else {
+                                    li.classList.add('hidden');
+                                }
+                            });
+                            break;
+                    }
+                    break;
+
+                case 'list2':
+                    // list2가 활성화된 경우
+                    switch (category) {
+                        case 'all':
+                            submenuList2.forEach((li) => li.classList.remove('hidden'));
+                            break;
+                        case 'library':
+                            submenuList2.forEach((li) => {
+                                if (
+                                    li.id.includes('library2') ||
+                                    li.id.includes('population2')
+                                ) {
+                                    li.classList.remove('hidden');
+                                } else {
+                                    li.classList.add('hidden');
+                                }
+                            });
+                            break;
+                        case 'wifi':
+                            submenuList2.forEach((li) => {
+                                if (
+                                    li.id.includes('wifi2') ||
+                                    li.id.includes('population2')
+                                ) {
+                                    li.classList.remove('hidden');
+                                } else {
+                                    li.classList.add('hidden');
+                                }
+                            });
+                            break;
+                        case 'issuingMachine':
+                            submenuList2.forEach((li) => {
+                                if (
+                                    li.id.includes('issuingMachine2') ||
+                                    li.id.includes('population2')
+                                ) {
+                                    li.classList.remove('hidden');
+                                } else {
+                                    li.classList.add('hidden');
+                                }
+                            });
+                            break;
+                        case 'shade':
+                            submenuList2.forEach((li) => {
+                                if (
+                                    li.id.includes('shade2') ||
+                                    li.id.includes('population2') ||
+                                    li.id.includes('traffic2')
+                                ) {
+                                    li.classList.remove('hidden');
+                                } else {
+                                    li.classList.add('hidden');
+                                }
+                            });
+                            break;
+                    }
+                    break;
+            }
+        });
     });
-    var populationCheckbox = document.getElementById('populationCheckbox');
-    populationCheckbox.addEventListener('change', function() {
-      var wmsLayer = map.getLayers().item(2); // WMS 레이어
-      wmsLayer.setVisible(populationCheckbox.checked);  // 체크된 상태에 따라 레이어 표시/숨기기
+    // 드래그 앤 드롭 이벤트 처리
+    draggableList.addEventListener('dragstart', (e) => {
+        if (e.target.tagName === 'LI') { // 드래그가 LI 요소에서 시작될 때만 실행
+            draggedItem = e.target; // 드래그 중인 항목 저장
+            draggedItem.classList.add('dragging'); // 드래그 중인 항목에 스타일 추가
+            placeholder = document.createElement('li'); // 플레이스홀더 생성
+            placeholder.className = 'placeholder'; // 플레이스홀더 스타일 클래스 추가
+            e.target.parentNode.insertBefore(placeholder, e.target.nextSibling); // 플레이스홀더를 드래그 항목 아래에 추가
+        }
     });
-    var subwayCheckbox = document.getElementById('subwayCheckbox');
-    subwayCheckbox.addEventListener('change', function() {
-      var wmsLayer = map.getLayers().item(3); // WMS 레이어
-      wmsLayer.setVisible(subwayCheckbox.checked);  // 체크된 상태에 따라 레이어 표시/숨기기
+    draggableList.addEventListener('dragover', (e) => {
+        e.preventDefault(); // 기본 동작 방지
+        const draggingOverItem = e.target.closest('li'); // 드래그 중인 항목 탐지
+        if (draggingOverItem && draggingOverItem !== placeholder && draggingOverItem !== draggedItem) { // 유효한 항목일 경우
+            const bounding = draggingOverItem.getBoundingClientRect(); // 항목의 위치 정보 가져오기
+            const offset = e.clientY - bounding.top; // 마우스 위치 계산
+            if (offset > bounding.height / 2) { // 마우스가 항목의 하단에 위치한 경우
+                draggingOverItem.after(placeholder); // 플레이스홀더를 항목 뒤로 이동
+            } else { // 상단에 위치한 경우
+                draggingOverItem.before(placeholder); // 플레이스홀더를 항목 앞으로 이동
+            }
+        }
     });
 
-    // 지도 클릭시
-    map.on('click', function (event) {
-      var coordinate = event.coordinate;
-      var view = map.getView();
-      var resolution = view.getResolution();
-      var projection = view.getProjection();
+    const layer_invisible = document.getElementById('layer-invisible');
+    const check_layer = document.getElementById('check-layer');
+    const layer_cancel = document.getElementById('layer-cancel');
 
-      // 클릭한 위치 좌표
-      var lonLatText = '클릭한 위치의 위도 : ' +  coordinate[1].toFixed(6) + ', 경도 : ' + coordinate[0].toFixed(6); // 위도, 경도
-      let coordinateText = document.getElementById("map_position");
-      coordinateText.textContent = lonLatText;
+    layer_cancel.addEventListener('click', ()=>{
+        if (check_layer.style.display === 'block' || check_layer.style.display === '') {
+            check_layer.style.display = 'none';
+            layer_invisible.classList.remove('active');
+        }
+    });
+    layer_invisible.addEventListener('click', () => {
+        if (check_layer.style.display === 'block' || check_layer.style.display === '') {
+            check_layer.style.display = 'none'; // 안 보이게 설정
+            layer_invisible.classList.remove('active');
+        }
+        else if (check_layer.style.display === 'none') {
+            check_layer.style.display = 'block'; // 보이게 설정
+            layer_invisible.classList.remove('active');
+
+        }
+    });
+    const layer_names = [
+        { id: 'gwangju_digital_b00_14118', name: '가건물' },
+        { id: 'gwangju_digital_b00_14311', name: '공장' },
+        { id: 'gwangju_digital_b00_14216', name: '구청' },
+        { id: 'gwangju_digital_b00_14215', name: '군청' },
+        { id: 'gwangju_digital_b00_14219', name: '면사무소' },
+        { id: 'gwangju_digital_b00_14116', name: '무벽건물' },
+        { id: 'gwangju_digital_b00_14221', name: '법원' },
+        { id: 'gwangju_digital_b00_14233', name: '세무서' },
+        { id: 'gwangju_digital_b00_14324', name: '시장경계' },
+        { id: 'gwangju_digital_b00_14214', name: '시청' },
+        { id: 'gwangju_digital_b00_14115', name: '아파트' },
+        { id: 'gwangju_digital_b00_14113', name: '연립주택' },
+        { id: 'gwangju_digital_b00_14117', name: '온실' },
+        { id: 'gwangju_digital_b00_14235', name: '우체국' },
+        { id: 'gwangju_digital_b00_14217', name: '읍사무소' },
+        { id: 'gwangju_digital_b00_14611', name: '일반병원' },
+        { id: 'gwangju_digital_b00_14218', name: '주민센터' },
+        { id: 'gwangju_digital_b00_14112', name: '주택' },
+        { id: 'gwangju_digital_b00_14111', name: '주택외건물' },
+        { id: 'gwangju_digital_b00_14524', name: '창고' },
+        { id: 'gwangju_digital_b00_14224', name: '파출소' },
+        { id: 'gwangju_digital_b00_14411', name: '학교' },
+        { id: 'gwangju_digital_b00_14511', name: '호텔' },
+        { id: 'gwangju_digital_b00_24120', name: '담장(미분류)' },
+        { id: 'gwangju_digital_b00_24127', name: '문주' },
+        { id: 'gwangju_digital_g00_22312', name: '모래' },
+        { id: 'gwangju_digital_g00_22322', name: '모래기호' },
+        { id: 'gwangju_digital_g00_22313', name: '습지' },
+        { id: 'gwangju_digital_g00_22323', name: '습지기호' },
+        { id: 'gwangju_digital_g00_38210', name: '(산업지역경계)미분류' },
+        { id: 'gwangju_digital_g00_38232', name: '관광단지' },
+        { id: 'gwangju_digital_g00_37214', name: '너덜바위' },
+        { id: 'gwangju_digital_g00_38231', name: '문화제보호구역' },
+        { id: 'gwangju_digital_g00_37213', name: '벼랑바위' },
+        { id: 'gwangju_digital_g00_38233', name: '위락단지' },
+        { id: 'gwangju_digital_g00_38214', name: '축산단지' },
+        { id: 'gwangju_digital_a00_13111', name: '(기본도로)고속국도' },
+        { id: 'gwangju_digital_a00_13116', name: '(기본도로)군도' },
+        { id: 'gwangju_digital_a00_13117', name: '(기본도로)면리간도로' },
+        { id: 'gwangju_digital_a00_13115', name: '(기본도로)시도' },
+        { id: 'gwangju_digital_a00_13112', name: '(기본도로)일반국도' },
+        { id: 'gwangju_digital_a00_13113', name: '(기본도로)지방도' },
+        { id: 'gwangju_digital_a00_13114', name: '(기본도로)특별시도, 광역시도' },
+        { id: 'gwangju_digital_a00_13431', name: '(도로번호-기호)고속국도' },
+        { id: 'gwangju_digital_a00_13432', name: '(도로번호-기호)일반국도' },
+        { id: 'gwangju_digital_a00_13433', name: '(도로번호-기호)지방도' },
+        { id: 'gwangju_digital_a00_13118', name: '부지안도로' },
+        { id: 'gwangju_digital_a00_23211', name: '고속국도' },
+        { id: 'gwangju_digital_a00_23216', name: '군도' },
+        { id: 'gwangju_digital_a00_23217', name: '면리간도' },
+        { id: 'gwangju_digital_a00_23119', name: '소로' },
+        { id: 'gwangju_digital_a00_23215', name: '시도' },
+        { id: 'gwangju_digital_a00_23212', name: '일반국도' },
+        { id: 'gwangju_digital_a00_23213', name: '지방도' },
+        { id: 'gwangju_digital_a00_23214', name: '특별시도,광역시도' },
+        { id: 'gwangju_digital_a00_33324', name: '인도' },
+        { id: 'gwangju_digital_a00_33327', name: '자전거도로' },
+        { id: 'gwangju_digital_a00_43325', name: '횡단보도' },
+        { id: 'gwangju_digital_a00_53326', name: '안전지대' },
+        { id: 'gwangju_digital_a00_63321', name: '육교' },
+        { id: 'gwangju_digital_a00_73340', name: '다리' },
+        { id: 'gwangju_digital_a00_71210', name: '철교' },
+        { id: 'gwangju_digital_a00_93351', name: '고가차도' },
+        { id: 'gwangju_digital_a00_93352', name: '지하차도' },
+        { id: 'gwangju_digital_e00_22112', name: '세류' },
+        { id: 'gwangju_digital_e00_22115', name: '하천중심선' },
+        { id: 'gwangju_digital_e00_32111', name: '실폭하천' },
+        { id: 'gwangju_digital_e00_42326', name: '유수방향' },
+        { id: 'gwangju_digital_e00_52114', name: '호수,저수지' },
+        { id: 'gwangju_digital_e00_62273', name: '용수로' },
+        { id: 'gwangju_digital_c00_32254', name: '선착장' },
+        { id: 'gwangju_digital_c00_52221', name: '콘크리트방조제(상단)' },
+        { id: 'gwangju_digital_c00_52211', name: '콘크리트제방(상단)' },
+        { id: 'gwangju_digital_c00_52212', name: '콘크리트제방(하단)' },
+        { id: 'gwangju_digital_c00_62242', name: '배수갑문' },
+        { id: 'gwangju_digital_c00_62243', name: '보' },
+        { id: 'gwangju_digital_c00_62241', name: '수문' },
+        { id: 'gwangju_digital_c00_76116', name: '암거' },
+        { id: 'gwangju_digital_c00_76117', name: '측구' },
+        { id: 'gwangju_digital_c00_96311', name: '우물' },
+        { id: 'gwangju_digital_d00_15213', name: '과수원' },
+        { id: 'gwangju_digital_d00_15211', name: '논' },
+        { id: 'gwangju_digital_d00_15212', name: '밭' },
+        { id: 'gwangju_digital_d00_25111', name: '지류계' },
+        { id: 'gwangju_digital_d00_45214', name: '목장' },
+        { id: 'gwangju_digital_h00_17334', name: '도곽' },
+        { id: 'gwangju_digital_h00_27311', name: '삼각점' },
+        { id: 'gwangju_digital_h00_27312', name: '수준점' },
+        { id: 'gwangju_digital_h00_27313', name: '통합기준점' },
+        { id: 'gwangju_digital_f00_17114', name: '(볼록지)계곡선' },
+        { id: 'gwangju_digital_f00_17111', name: '(볼록지)주곡선' },
+        { id: 'gwangju_digital_f00_17124', name: '(오목지)계곡선' },
+        { id: 'gwangju_digital_f00_17121', name: '(오목지)주곡선' },
+        { id: 'gwangju_digital_f00_27217', name: '표고점' },
+        { id: 'gwangju_digital_f00_37221', name: '성토(상단)' },
+        { id: 'gwangju_digital_f00_37223', name: '성토(하단)' },
+        { id: 'gwangju_digital_f00_37222', name: '절토(상단)' },
+        { id: 'gwangju_digital_f00_47224', name: '콘크리트옹벽(상단)' },
+        { id: 'gwangju_digital_f00_47225', name: '콘크리트옹벽(하단)' },
+        { id: 'gwangju_population_10c_2024_10', name: '초등학생' },
+        { id: 'gwangju_population_10j_2024_10', name: '중학생' },
+        { id: 'gwangju_population_10g_2024_10', name: '고등학생' },
+        { id: 'gwangju_population_20y_2024_10', name: '20대' },
+        { id: 'gwangju_population_30y_2024_10', name: '30대' },
+        { id: 'gwangju_population_40y_2024_10', name: '40대' },
+        { id: 'gwangju_population_50y_2024_10', name: '50대' },
+        { id: 'gwangju_population_60y_2024_10', name: '60대' },
+        { id: 'gwangju_population_70y_2024_10', name: '70대' },
+        { id: 'gwangju_population_80y_2024_10', name: '80대' },
+        { id: 'gwangju_population_90y_2024_10', name: '90대' },
+        { id: 'gwangju_population_all_2024_10', name: '모든연령대' },
+        { id: 'gwangju_dong', name: '동계' },
+        { id: 'gwangju_gu', name: '구계' },
+        { id: 'gwangju_library', name: '도서관' },
+        { id: 'gwangju_toji_use_1110', name: '경지정리답' },
+        { id: 'gwangju_toji_use_1120', name: '미경지정리답' },
+        { id: 'gwangju_toji_use_1210', name: '보통,특수작물' },
+        { id: 'gwangju_toji_use_1220', name: '과수원 기타' },
+        { id: 'gwangju_toji_use_2110', name: '자연초지' },
+        { id: 'gwangju_toji_use_2120', name: '인공초지' },
+        { id: 'gwangju_toji_use_2210', name: '침엽수림' },
+        { id: 'gwangju_toji_use_2220', name: '활엽수림' },
+        { id: 'gwangju_toji_use_2230', name: '혼합수림' },
+        { id: 'gwangju_toji_use_2310', name: '골프장' },
+        { id: 'gwangju_toji_use_2320', name: '공원묘지' },
+        { id: 'gwangju_toji_use_2330', name: '유원지' },
+        { id: 'gwangju_toji_use_3110', name: '일반주택지' },
+        { id: 'gwangju_toji_use_3120', name: '고층주택지' },
+        { id: 'gwangju_toji_use_3130', name: '상업,업무지' },
+        { id: 'gwangju_toji_use_3140', name: '나대지 및 인공녹지' },
+        { id: 'gwangju_toji_use_3210', name: '도로' },
+        { id: 'gwangju_toji_use_3220', name: '철로 및 주변지역' },
+        { id: 'gwangju_toji_use_3230', name: '공항' },
+        { id: 'gwangju_toji_use_3310', name: '공업시설' },
+        { id: 'gwangju_toji_use_3320', name: '공업나지, 기타' },
+        { id: 'gwangju_toji_use_3410', name: '발전시설' },
+        { id: 'gwangju_toji_use_3420', name: '처리장' },
+        { id: 'gwangju_toji_use_3430', name: '교육, 군사시설' },
+        { id: 'gwangju_toji_use_3440', name: '공공용지' },
+        { id: 'gwangju_toji_use_3510', name: '양어장, 양식장' },
+        { id: 'gwangju_toji_use_3520', name: '채광지역' },
+        { id: 'gwangju_toji_use_3530', name: '매립지' },
+        { id: 'gwangju_toji_use_3550', name: '가축사육시설' },
+        { id: 'gwangju_toji_use_4210', name: '하천' },
+        { id: 'gwangju_toji_use_4310', name: '호, 소' },
+        { id: 'gwangju_toji_use_4320', name: '댐' },
+        { id: 'gwangju_toji_owner_00', name: '일본인, 창씨명등' },
+        { id: 'gwangju_toji_owner_01', name: '개인' },
+        { id: 'gwangju_toji_owner_02', name: '국유지' },
+        { id: 'gwangju_toji_owner_03', name: '외국인,외국공공기관' },
+        { id: 'gwangju_toji_owner_04', name: '시, 도유지' },
+        { id: 'gwangju_toji_owner_05', name: '군유지' },
+        { id: 'gwangju_toji_owner_06', name: '법인' },
+        { id: 'gwangju_toji_owner_07', name: '종증' },
+        { id: 'gwangju_toji_owner_08', name: '종교단체' },
+        { id: 'gwangju_toji_owner_09', name: '기타' },
+        { id: 'gwangju_civil_service_machines', name: '무인발급기' },
+        { id: 'gwangju_pub_wifi', name: '공공와이파이' },
+        { id: 'gwangju_gtr', name: '교통현황' },
+        { id: 'gwangju_gm', name: '통합' },
+        { id: 'gwangju_gm_ggy', name: '공공용' },
+        { id: 'gwangju_gm_gyy', name: '공업용' },
+        { id: 'gwangju_gm_nssy', name: '농수산용' },
+        { id: 'gwangju_gm_mgshy', name: '문교사회용' },
+        { id: 'gwangju_gm_syy', name: '상업용' },
+        { id: 'gwangju_gm_jgy', name: '주거용' },
+        { id: 'gwangju_gm_gt', name: '기타' },
+        { id: 'cheonan_population_10c_2024_10', name: '초등학생' },
+        { id: 'cheonan_population_10j_2024_10', name: '중학생' },
+        { id: 'cheonan_population_10g_2024_10', name: '고등학생' },
+        { id: 'cheonan_population_20y_2024_10', name: '20대' },
+        { id: 'cheonan_population_30y_2024_10', name: '30대' },
+        { id: 'cheonan_population_40y_2024_10', name: '40대' },
+        { id: 'cheonan_population_50y_2024_10', name: '50대' },
+        { id: 'cheonan_population_60y_2024_10', name: '60대' },
+        { id: 'cheonan_population_70y_2024_10', name: '70대' },
+        { id: 'cheonan_population_80y_2024_10', name: '80대' },
+        { id: 'cheonan_population_all', name: '모든연령대' },
+        { id: 'cheonan_si', name: '전체' },
+        { id: 'cheonan_toji_character_live', name: '거주' },
+        { id: 'cheonan_toji_character_industry', name: '공업' },
+        { id: 'cheonan_toji_character_management', name: '관리지역' },
+        { id: 'cheonan_toji_character_etc', name: '기타' },
+        { id: 'cheonan_toji_character_green', name: '녹지' },
+        { id: 'cheonan_toji_character_agriculture', name: '농림' },
+        { id: 'cheonan_toji_character_road', name: '도로' },
+        { id: 'cheonan_toji_character_mercantile', name: '상업' },
+        { id: 'cheonan_toji_character_preservation', name: '환경보전' },
+        { id: 'cheonan_toji_owner_00', name: '일본인, 창씨명등' },
+        { id: 'cheonan_toji_owner_01', name: '개인' },
+        { id: 'cheonan_toji_owner_02', name: '국유지' },
+        { id: 'cheonan_toji_owner_03', name: '외국인,외국공공기관' },
+        { id: 'cheonan_toji_owner_04', name: '시, 도유지' },
+        { id: 'cheonan_toji_owner_05', name: '군유지' },
+        { id: 'cheonan_toji_owner_06', name: '법인' },
+        { id: 'cheonan_toji_owner_07', name: '종증' },
+        { id: 'cheonan_toji_owner_08', name: '종교단체' },
+        { id: 'cheonan_toji_owner_09', name: '기타' },
+        { id: 'cheonan_toji_use_1110', name: '경지정리답' },
+        { id: 'cheonan_toji_use_1120', name: '미경지정리답' },
+        { id: 'cheonan_toji_use_1210', name: '보통,특수작물' },
+        { id: 'cheonan_toji_use_1220', name: '과수원 기타' },
+        { id: 'cheonan_toji_use_2110', name: '자연초지' },
+        { id: 'cheonan_toji_use_2120', name: '인공초지' },
+        { id: 'cheonan_toji_use_2210', name: '침엽수림' },
+        { id: 'cheonan_toji_use_2220', name: '활엽수림' },
+        { id: 'cheonan_toji_use_2230', name: '혼합수림' },
+        { id: 'cheonan_toji_use_2310', name: '골프장' },
+        { id: 'cheonan_toji_use_2320', name: '공원묘지' },
+        { id: 'cheonan_toji_use_2330', name: '유원지' },
+        { id: 'cheonan_toji_use_2340', name: '압벽 및 석산' },
+        { id: 'cheonan_toji_use_3110', name: '일반주택지' },
+        { id: 'cheonan_toji_use_3120', name: '고층주택지' },
+        { id: 'cheonan_toji_use_3130', name: '상업,업무지' },
+        { id: 'cheonan_toji_use_3140', name: '나대지 및 인공녹지' },
+        { id: 'cheonan_toji_use_3210', name: '도로' },
+        { id: 'cheonan_toji_use_3220', name: '철로 및 주변지역' },
+        { id: 'cheonan_toji_use_3310', name: '공업시설' },
+        { id: 'cheonan_toji_use_3320', name: '공업나지, 기타' },
+        { id: 'cheonan_toji_use_3410', name: '발전시설' },
+        { id: 'cheonan_toji_use_3420', name: '처리장' },
+        { id: 'cheonan_toji_use_3430', name: '교육, 군사시설' },
+        { id: 'cheonan_toji_use_3440', name: '공공용지' },
+        { id: 'cheonan_toji_use_3510', name: '양어장, 양식장' },
+        { id: 'cheonan_toji_use_3520', name: '채광지역' },
+        { id: 'cheonan_toji_use_3530', name: '매립지' },
+        { id: 'cheonan_toji_use_3550', name: '가축사육시설' },
+        { id: 'cheonan_toji_use_4210', name: '하천' },
+        { id: 'cheonan_toji_use_4310', name: '호, 소' },
+        { id: 'cheonan_library_20240610', name: '도서관' },
+        { id: 'cheonan_shd_20240610', name: '신호등' },
+        { id: 'cheonan_dng_gm', name: '동남구' },
+        { id: 'cheonan_sbg_gm', name: '서북구' },
+        { id: 'cheonan_pub_wifi', name: '공공와이파이' },
+        { id: 'cheonan_civil_service_machines', name: '무인발급기' },
+        { id: 'cheonan_digital_b00_14118', name: '가건물' },
+        { id: 'cheonan_digital_b00_14311', name: '공장' },
+        { id: 'cheonan_digital_b00_14216', name: '구청' },
+        { id: 'cheonan_digital_b00_14219', name: '면사무소' },
+        { id: 'cheonan_digital_b00_14116', name: '무벽건물' },
+        { id: 'cheonan_digital_b00_14221', name: '법원' },
+        { id: 'cheonan_digital_b00_14234', name: '세관' },
+        { id: 'cheonan_digital_b00_14333', name: '세무서' },
+        { id: 'cheonan_digital_b00_14324', name: '시장' },
+        { id: 'cheonan_digital_b00_14115', name: '아파트' },
+        { id: 'cheonan_digital_b00_14113', name: '연립주택' },
+        { id: 'cheonan_digital_b00_14117', name: '온실' },
+        { id: 'cheonan_digital_b00_14235', name: '우체국' },
+        { id: 'cheonan_digital_b00_14217', name: '읍사무소' },
+        { id: 'cheonan_digital_b00_14611', name: '일반병원' },
+        { id: 'cheonan_digital_b00_14218', name: '주민센터' },
+        { id: 'cheonan_digital_b00_14112', name: '주택' },
+        { id: 'cheonan_digital_b00_14111', name: '주택외건물' },
+        { id: 'cheonan_digital_b00_14524', name: '창고' },
+        { id: 'cheonan_digital_b00_14224', name: '파출소' },
+        { id: 'cheonan_digital_b00_14411', name: '학교' },
+        { id: 'cheonan_digital_b00_14511', name: '호텔' },
+        { id: 'cheonan_digital_b00_24120', name: '담장(미분류)' },
+        { id: 'cheonan_digital_b00_24127', name: '문주' },
+        { id: 'cheonan_digital_g00_22312', name: '모래' },
+        { id: 'cheonan_digital_g00_22322', name: '모래기호' },
+        { id: 'cheonan_digital_g00_22313', name: '습지' },
+        { id: 'cheonan_digital_g00_22323', name: '습지기호' },
+        { id: 'cheonan_digital_g00_38210', name: '(산업지역경계)미분류' },
+        { id: 'cheonan_digital_g00_38232', name: '관광단지' },
+        { id: 'cheonan_digital_g00_37214', name: '너덜바위' },
+        { id: 'cheonan_digital_g00_38231', name: '문화제보호구역' },
+        { id: 'cheonan_digital_g00_37213', name: '벼랑바위' },
+        { id: 'cheonan_digital_g00_38233', name: '위락단지' },
+        { id: 'cheonan_digital_g00_38214', name: '축산단지' },
+        { id: 'cheonan_digital_h00_17334', name: '도곽' },
+        { id: 'cheonan_digital_h00_27311', name: '삼각점' },
+        { id: 'cheonan_digital_h00_27312', name: '수준점' },
+        { id: 'cheonan_digital_h00_27313', name: '통합기준점' },
+        { id: 'cheonan_digital_f00_17114', name: '(볼록지)계곡선' },
+        { id: 'cheonan_digital_f00_17111', name: '(볼록지)주곡선' },
+        { id: 'cheonan_digital_f00_17124', name: '(오목지)계곡선' },
+        { id: 'cheonan_digital_f00_17121', name: '(오목지)주곡선' },
+        { id: 'cheonan_digital_f00_27217', name: '표고점' },
+        { id: 'cheonan_digital_f00_37221', name: '성토(상단)' },
+        { id: 'cheonan_digital_f00_37223', name: '성토(하단)' },
+        { id: 'cheonan_digital_f00_37222', name: '절토(상단)' },
+        { id: 'cheonan_digital_f00_47224', name: '콘크리트옹벽(상단)' },
+        { id: 'cheonan_digital_f00_47225', name: '콘크리트옹벽(하단)' },
+        { id: 'cheonan_digital_e00_32111', name: '실폭하천' },
+        { id: 'cheonan_digital_e00_62271', name: '공업용수로(지상)' },
+        { id: 'cheonan_digital_e00_62273', name: '농업용수로(지상)' },
+        { id: 'cheonan_digital_e00_42326', name: '유수방향' },
+        { id: 'cheonan_digital_e00_22112', name: '세류' },
+        { id: 'cheonan_digital_e00_22115', name: '하천중심선' },
+        { id: 'cheonan_digital_e00_52114', name: '호수/저수지' },
+        { id: 'cheonan_digital_c00_62242', name: '배수갑문' },
+        { id: 'cheonan_digital_c00_62243', name: '보' },
+        { id: 'cheonan_digital_c00_62241', name: '수문' },
+        { id: 'cheonan_digital_c00_76116', name: '암거' },
+        { id: 'cheonan_digital_c00_76117', name: '측구' },
+        { id: 'cheonan_digital_c00_96311', name: '우물' },
+        { id: 'cheonan_digital_c00_52231', name: '방파제(상단)' },
+        { id: 'cheonan_digital_c00_52211', name: '콘크리트제방(상단)' },
+        { id: 'cheonan_digital_c00_52212', name: '콘크리트제방(하단)' },
+        { id: 'cheonan_digital_d00_15213', name: '과수원' },
+        { id: 'cheonan_digital_d00_15211', name: '논' },
+        { id: 'cheonan_digital_d00_15212', name: '밭' },
+        { id: 'cheonan_digital_d00_45214', name: '목초지' },
+        { id: 'cheonan_digital_d00_25111', name: '지류계' },
+        { id: 'cheonan_digital_a00_73340', name: '(다리)미분류' },
+        { id: 'cheonan_digital_a00_71211', name: '철교' },
+        { id: 'cheonan_digital_a00_71213', name: '철도터널' },
+        { id: 'cheonan_digital_a00_13111', name: '(기존도로)고속국도' },
+        { id: 'cheonan_digital_a00_13116', name: '(기존도로)군도' },
+        { id: 'cheonan_digital_a00_13117', name: '(기존도로)면리간도로' },
+        { id: 'cheonan_digital_a00_13115', name: '(기존도로)시도' },
+        { id: 'cheonan_digital_a00_13112', name: '(기존도로)일반국도' },
+        { id: 'cheonan_digital_a00_13113', name: '(기존도로)지방도' },
+        { id: 'cheonan_digital_a00_13431', name: '(도로번호-기호)고속국도' },
+        { id: 'cheonan_digital_a00_13432', name: '(도로번호-기호)일반국도' },
+        { id: 'cheonan_digital_a00_13433', name: '(도로번호-기호)지방도' },
+        { id: 'cheonan_digital_a00_13118', name: '부지안도로' },
+        { id: 'cheonan_digital_a00_23211', name: '(도로중심선)고속국도' },
+        { id: 'cheonan_digital_a00_23216', name: '(도로중심선)군도' },
+        { id: 'cheonan_digital_a00_23217', name: '(도로중심선)면리간도로' },
+        { id: 'cheonan_digital_a00_23215', name: '(도로중심선)시도' },
+        { id: 'cheonan_digital_a00_23212', name: '(도로중심선)일반국도' },
+        { id: 'cheonan_digital_a00_23213', name: '(도로중심선)지방도' },
+        { id: 'cheonan_digital_a00_23119', name: '소로' },
+        { id: 'cheonan_digital_a00_53326', name: '안전지대' },
+        { id: 'cheonan_digital_a00_63321', name: '육교' },
+        { id: 'cheonan_digital_a00_33324', name: '인도' },
+        { id: 'cheonan_digital_a00_33327', name: '자전거도로' },
+        { id: 'cheonan_digital_a00_93351', name: '(입체교차부)고가차도' },
+        { id: 'cheonan_digital_a00_93352', name: '(입체교차부)지하차도' },
+        { id: 'cheonan_digital_a00_43325', name: '횡단보도' },
+        { id: 'gwangju_flow_pop', name: '유동인구'}
+    ];
+    
+    // 레이어의 인덱스와 체크박스의 ID를 배열로 정의
+    const layers = [
+        { id: 'gwangju_dong', layerIndex: 1, shape: "none" },
+        { id: 'gwangju_gu', layerIndex: 2, shape: "none" },
+        { id: 'gwangju_population_10c_2024_10', layerIndex: 3, shape: "none" },
+        { id: 'gwangju_population_10j_2024_10', layerIndex: 4, shape: "none" },
+        { id: 'gwangju_population_10g_2024_10', layerIndex: 5, shape: "none" },
+        { id: 'gwangju_population_20y_2024_10', layerIndex: 6, shape: "none" },
+        { id: 'gwangju_population_30y_2024_10', layerIndex: 7, shape: "none" },
+        { id: 'gwangju_population_40y_2024_10', layerIndex: 8, shape: "none" },
+        { id: 'gwangju_population_50y_2024_10', layerIndex: 9, shape: "none" },
+        { id: 'gwangju_population_60y_2024_10', layerIndex: 10, shape: "none" },
+        { id: 'gwangju_population_70y_2024_10', layerIndex: 11, shape: "none" },
+        { id: 'gwangju_population_80y_2024_10', layerIndex: 12, shape: "none" },
+        { id: 'gwangju_population_90y_2024_10', layerIndex: 13, shape: "none" },
+        { id: 'gwangju_population_all_2024_10', layerIndex: 14, shape: "none" },
+        { id: 'gwangju_toji_use_1110', layerIndex: 15, shape: "polygon" },
+        { id: 'gwangju_toji_use_1120', layerIndex: 16, shape: "polygon" },
+        { id: 'gwangju_toji_use_1210', layerIndex: 17, shape: "polygon" },
+        { id: 'gwangju_toji_use_1220', layerIndex: 18, shape: "polygon" },
+        { id: 'gwangju_toji_use_2110', layerIndex: 19, shape: "polygon" },
+        { id: 'gwangju_toji_use_2120', layerIndex: 20, shape: "polygon" },
+        { id: 'gwangju_toji_use_2210', layerIndex: 21, shape: "polygon" },
+        { id: 'gwangju_toji_use_2220', layerIndex: 22, shape: "polygon" },
+        { id: 'gwangju_toji_use_2230', layerIndex: 23, shape: "polygon" },
+        { id: 'gwangju_toji_use_2310', layerIndex: 24, shape: "polygon" },
+        { id: 'gwangju_toji_use_2320', layerIndex: 25, shape: "polygon" },
+        { id: 'gwangju_toji_use_2330', layerIndex: 26, shape: "polygon" },
+        { id: 'gwangju_toji_use_3110', layerIndex: 27, shape: "polygon" },
+        { id: 'gwangju_toji_use_3120', layerIndex: 28, shape: "polygon" },
+        { id: 'gwangju_toji_use_3130', layerIndex: 29, shape: "polygon" },
+        { id: 'gwangju_toji_use_3140', layerIndex: 30, shape: "polygon" },
+        { id: 'gwangju_toji_use_3210', layerIndex: 31, shape: "polygon" },
+        { id: 'gwangju_toji_use_3220', layerIndex: 32, shape: "polygon" },
+        { id: 'gwangju_toji_use_3230', layerIndex: 33, shape: "polygon" },
+        { id: 'gwangju_toji_use_3310', layerIndex: 34, shape: "polygon" },
+        { id: 'gwangju_toji_use_3320', layerIndex: 35, shape: "polygon" },
+        { id: 'gwangju_toji_use_3410', layerIndex: 36, shape: "polygon" },
+        { id: 'gwangju_toji_use_3420', layerIndex: 37, shape: "polygon" },
+        { id: 'gwangju_toji_use_3430', layerIndex: 38, shape: "polygon" },
+        { id: 'gwangju_toji_use_3440', layerIndex: 39, shape: "polygon" },
+        { id: 'gwangju_toji_use_3510', layerIndex: 40, shape: "polygon" },
+        { id: 'gwangju_toji_use_3520', layerIndex: 41, shape: "polygon" },
+        { id: 'gwangju_toji_use_3530', layerIndex: 42, shape: "polygon" },
+        { id: 'gwangju_toji_use_3550', layerIndex: 43, shape: "polygon" },
+        { id: 'gwangju_toji_use_4210', layerIndex: 44, shape: "polygon" },
+        { id: 'gwangju_toji_use_4310', layerIndex: 45, shape: "polygon" },
+        { id: 'gwangju_toji_use_4320', layerIndex: 46, shape: "polygon" },
+        { id: 'gwangju_toji_owner_00', layerIndex: 47, shape: "polygon" },
+        { id: 'gwangju_toji_owner_01', layerIndex: 48, shape: "polygon" },
+        { id: 'gwangju_toji_owner_02', layerIndex: 49, shape: "polygon" },
+        { id: 'gwangju_toji_owner_03', layerIndex: 50, shape: "polygon" },
+        { id: 'gwangju_toji_owner_04', layerIndex: 51, shape: "polygon" },
+        { id: 'gwangju_toji_owner_05', layerIndex: 52, shape: "polygon" },
+        { id: 'gwangju_toji_owner_06', layerIndex: 53, shape: "polygon" },
+        { id: 'gwangju_toji_owner_07', layerIndex: 54, shape: "polygon" },
+        { id: 'gwangju_toji_owner_08', layerIndex: 55, shape: "polygon" },
+        { id: 'gwangju_toji_owner_09', layerIndex: 56, shape: "polygon" },
+        { id: 'gwangju_library', layerIndex: 57, shape: "dot" },
+        { id: 'gwangju_civil_service_machines', layerIndex: 58, shape: "dot" },
+        { id: 'gwangju_pub_wifi', layerIndex: 59, shape: "dot" },
+        { id: 'gwangju_gtr', layerIndex: 60, shape: "none" },
+        { id: 'gwangju_gm', layerIndex: 61, shape: "polygon" },
+        { id: 'gwangju_gm_ggy', layerIndex: 62, shape: "polygon" },
+        { id: 'gwangju_gm_gyy', layerIndex: 63, shape: "polygon" },
+        { id: 'gwangju_gm_nssy', layerIndex: 64, shape: "polygon" },
+        { id: 'gwangju_gm_mgshy', layerIndex: 65, shape: "polygon" },
+        { id: 'gwangju_gm_syy', layerIndex: 66, shape: "polygon" },
+        { id: 'gwangju_gm_jgy', layerIndex: 67, shape: "polygon" },
+        { id: 'gwangju_gm_gt', layerIndex: 68, shape: "polygon" },
+        { id: 'gwangju_digital_b00_14118', layerIndex: 69, shape: "line" },
+        { id: 'gwangju_digital_b00_14311', layerIndex: 70, shape: "line" },
+        { id: 'gwangju_digital_b00_14216', layerIndex: 71, shape: "line" },
+        { id: 'gwangju_digital_b00_14215', layerIndex: 72, shape: "line" },
+        { id: 'gwangju_digital_b00_14219', layerIndex: 73, shape: "line" },
+        { id: 'gwangju_digital_b00_14116', layerIndex: 74, shape: "line" },
+        { id: 'gwangju_digital_b00_14221', layerIndex: 75, shape: "line" },
+        { id: 'gwangju_digital_b00_14233', layerIndex: 76, shape: "line" },
+        { id: 'gwangju_digital_b00_14324', layerIndex: 77, shape: "line" },
+        { id: 'gwangju_digital_b00_14214', layerIndex: 78, shape: "line" },
+        { id: 'gwangju_digital_b00_14115', layerIndex: 79, shape: "line" },
+        { id: 'gwangju_digital_b00_14113', layerIndex: 80, shape: "line" },
+        { id: 'gwangju_digital_b00_14117', layerIndex: 81, shape: "line" },
+        { id: 'gwangju_digital_b00_14235', layerIndex: 82, shape: "line" },
+        { id: 'gwangju_digital_b00_14217', layerIndex: 83, shape: "line" },
+        { id: 'gwangju_digital_b00_14611', layerIndex: 84, shape: "line" },
+        { id: 'gwangju_digital_b00_14218', layerIndex: 85, shape: "line" },
+        { id: 'gwangju_digital_b00_14112', layerIndex: 86, shape: "line" },
+        { id: 'gwangju_digital_b00_14111', layerIndex: 87, shape: "line" },
+        { id: 'gwangju_digital_b00_14524', layerIndex: 88, shape: "line" },
+        { id: 'gwangju_digital_b00_14224', layerIndex: 89, shape: "line" },
+        { id: 'gwangju_digital_b00_14411', layerIndex: 90, shape: "line" },
+        { id: 'gwangju_digital_b00_14511', layerIndex: 91, shape: "line" },
+        { id: 'gwangju_digital_b00_24120', layerIndex: 92, shape: "line" },
+        { id: 'gwangju_digital_b00_24127', layerIndex: 93, shape: "line" },
+        { id: 'gwangju_digital_g00_22312', layerIndex: 94, shape: "line" },
+        { id: 'gwangju_digital_g00_22322', layerIndex: 95, shape: "line" },
+        { id: 'gwangju_digital_g00_22313', layerIndex: 96, shape: "line" },
+        { id: 'gwangju_digital_g00_22323', layerIndex: 97, shape: "line" },
+        { id: 'gwangju_digital_g00_38210', layerIndex: 98, shape: "line" },
+        { id: 'gwangju_digital_g00_38232', layerIndex: 99, shape: "line" },
+        { id: 'gwangju_digital_g00_37214', layerIndex: 100, shape: "line" },
+        { id: 'gwangju_digital_g00_38231', layerIndex: 101, shape: "line" },
+        { id: 'gwangju_digital_g00_37213', layerIndex: 102, shape: "line" },
+        { id: 'gwangju_digital_g00_38233', layerIndex: 103, shape: "line" },
+        { id: 'gwangju_digital_g00_38214', layerIndex: 104, shape: "line" },
+        { id: 'gwangju_digital_a00_13111', layerIndex: 105, shape: "line" },
+        { id: 'gwangju_digital_a00_13116', layerIndex: 106, shape: "line" },
+        { id: 'gwangju_digital_a00_13117', layerIndex: 107, shape: "line" },
+        { id: 'gwangju_digital_a00_13115', layerIndex: 108, shape: "line" },
+        { id: 'gwangju_digital_a00_13112', layerIndex: 109, shape: "line" },
+        { id: 'gwangju_digital_a00_13113', layerIndex: 110, shape: "line" },
+        { id: 'gwangju_digital_a00_13114', layerIndex: 111, shape: "line" },
+        { id: 'gwangju_digital_a00_13431', layerIndex: 112, shape: "line" },
+        { id: 'gwangju_digital_a00_13432', layerIndex: 113, shape: "line" },
+        { id: 'gwangju_digital_a00_13433', layerIndex: 114, shape: "line" },
+        { id: 'gwangju_digital_a00_13118', layerIndex: 115, shape: "line" },
+        { id: 'gwangju_digital_a00_23211', layerIndex: 116, shape: "line" },
+        { id: 'gwangju_digital_a00_23216', layerIndex: 117, shape: "line" },
+        { id: 'gwangju_digital_a00_23217', layerIndex: 118, shape: "line" },
+        { id: 'gwangju_digital_a00_23119', layerIndex: 119, shape: "line" },
+        { id: 'gwangju_digital_a00_23215', layerIndex: 120, shape: "line" },
+        { id: 'gwangju_digital_a00_23212', layerIndex: 121, shape: "line" },
+        { id: 'gwangju_digital_a00_23213', layerIndex: 122, shape: "line" },
+        { id: 'gwangju_digital_a00_23214', layerIndex: 123, shape: "line" },
+        { id: 'gwangju_digital_a00_33324', layerIndex: 124, shape: "line" },
+        { id: 'gwangju_digital_a00_33327', layerIndex: 125, shape: "line" },
+        { id: 'gwangju_digital_a00_43325', layerIndex: 126, shape: "line" },
+        { id: 'gwangju_digital_a00_53326', layerIndex: 127, shape: "line" },
+        { id: 'gwangju_digital_a00_63321', layerIndex: 128, shape: "line" },
+        { id: 'gwangju_digital_a00_73340', layerIndex: 129, shape: "line" },
+        { id: 'gwangju_digital_a00_71210', layerIndex: 130, shape: "line" },
+        { id: 'gwangju_digital_a00_93351', layerIndex: 131, shape: "line" },
+        { id: 'gwangju_digital_a00_93352', layerIndex: 132, shape: "line" },
+        { id: 'gwangju_digital_e00_22112', layerIndex: 133, shape: "line" },
+        { id: 'gwangju_digital_e00_22115', layerIndex: 134, shape: "line" },
+        { id: 'gwangju_digital_e00_32111', layerIndex: 135, shape: "line" },
+        { id: 'gwangju_digital_e00_42326', layerIndex: 136, shape: "line" },
+        { id: 'gwangju_digital_e00_52114', layerIndex: 137, shape: "line" },
+        { id: 'gwangju_digital_e00_62273', layerIndex: 138, shape: "line" },
+        { id: 'gwangju_digital_c00_32254', layerIndex: 139, shape: "line" },
+        { id: 'gwangju_digital_c00_52221', layerIndex: 140, shape: "line" },
+        { id: 'gwangju_digital_c00_52211', layerIndex: 141, shape: "line" },
+        { id: 'gwangju_digital_c00_52212', layerIndex: 142, shape: "line" },
+        { id: 'gwangju_digital_c00_62242', layerIndex: 143, shape: "line" },
+        { id: 'gwangju_digital_c00_62243', layerIndex: 144, shape: "line" },
+        { id: 'gwangju_digital_c00_62241', layerIndex: 145, shape: "line" },
+        { id: 'gwangju_digital_c00_76116', layerIndex: 146, shape: "line" },
+        { id: 'gwangju_digital_c00_76117', layerIndex: 147, shape: "line" },
+        { id: 'gwangju_digital_c00_96311', layerIndex: 148, shape: "line" },
+        { id: 'gwangju_digital_d00_15213', layerIndex: 149, shape: "line" },
+        { id: 'gwangju_digital_d00_15211', layerIndex: 150, shape: "line" },
+        { id: 'gwangju_digital_d00_15212', layerIndex: 151, shape: "line" },
+        { id: 'gwangju_digital_d00_25111', layerIndex: 152, shape: "line" },
+        { id: 'gwangju_digital_d00_45214', layerIndex: 153, shape: "line" },
+        { id: 'gwangju_digital_h00_17334', layerIndex: 154, shape: "line" },
+        { id: 'gwangju_digital_h00_27311', layerIndex: 155, shape: "line" },
+        { id: 'gwangju_digital_h00_27312', layerIndex: 156, shape: "line" },
+        { id: 'gwangju_digital_h00_27313', layerIndex: 157, shape: "line" },
+        { id: 'gwangju_digital_f00_17114', layerIndex: 158, shape: "line" },
+        { id: 'gwangju_digital_f00_17111', layerIndex: 159, shape: "line" },
+        { id: 'gwangju_digital_f00_17124', layerIndex: 160, shape: "line" },
+        { id: 'gwangju_digital_f00_17121', layerIndex: 161, shape: "line" },
+        { id: 'gwangju_digital_f00_27217', layerIndex: 162, shape: "line" },
+        { id: 'gwangju_digital_f00_37221', layerIndex: 163, shape: "line" },
+        { id: 'gwangju_digital_f00_37223', layerIndex: 164, shape: "line" },
+        { id: 'gwangju_digital_f00_37222', layerIndex: 165, shape: "line" },
+        { id: 'gwangju_digital_f00_47224', layerIndex: 166, shape: "line" },
+        { id: 'gwangju_digital_f00_47225', layerIndex: 167, shape: "line" },
+        { id: 'cheonan_population_10c_2024_10', layerIndex: 168, shape: "none" },
+        { id: 'cheonan_population_10j_2024_10', layerIndex: 169, shape: "none" },
+        { id: 'cheonan_population_10g_2024_10', layerIndex: 170, shape: "none" },
+        { id: 'cheonan_population_20y_2024_10', layerIndex: 171, shape: "none" },
+        { id: 'cheonan_population_30y_2024_10', layerIndex: 172, shape: "none" },
+        { id: 'cheonan_population_40y_2024_10', layerIndex: 173, shape: "none" },
+        { id: 'cheonan_population_50y_2024_10', layerIndex: 174, shape: "none" },
+        { id: 'cheonan_population_60y_2024_10', layerIndex: 175, shape: "none" },
+        { id: 'cheonan_population_70y_2024_10', layerIndex: 176, shape: "none" },
+        { id: 'cheonan_population_80y_2024_10', layerIndex: 177, shape: "none" },
+        { id: 'cheonan_population_all', layerIndex: 179, shape: "none" },
+        { id: 'cheonan_si', layerIndex: 180, shape: "none" },
+        { id: 'cheonan_toji_character_live', layerIndex: 181, shape: "polygon" },
+        { id: 'cheonan_toji_character_industry', layerIndex: 182, shape: "polygon" },
+        { id: 'cheonan_toji_character_management', layerIndex: 183, shape: "polygon" },
+        { id: 'cheonan_toji_character_etc', layerIndex: 184, shape: "polygon" },
+        { id: 'cheonan_toji_character_green', layerIndex: 185, shape: "polygon" },
+        { id: 'cheonan_toji_character_agriculture', layerIndex: 186, shape: "polygon" },
+        { id: 'cheonan_toji_character_road', layerIndex: 187, shape: "polygon" },
+        { id: 'cheonan_toji_character_mercantile', layerIndex: 188, shape: "polygon" },
+        { id: 'cheonan_toji_character_preservation', layerIndex: 189, shape: "polygon" },
+        { id: 'cheonan_toji_owner_00', layerIndex: 190, shape: "polygon" },
+        { id: 'cheonan_toji_owner_01', layerIndex: 191, shape: "polygon" },
+        { id: 'cheonan_toji_owner_02', layerIndex: 192, shape: "polygon" },
+        { id: 'cheonan_toji_owner_03', layerIndex: 193, shape: "polygon" },
+        { id: 'cheonan_toji_owner_04', layerIndex: 194, shape: "polygon" },
+        { id: 'cheonan_toji_owner_05', layerIndex: 195, shape: "polygon" },
+        { id: 'cheonan_toji_owner_06', layerIndex: 196, shape: "polygon" },
+        { id: 'cheonan_toji_owner_07', layerIndex: 197, shape: "polygon" },
+        { id: 'cheonan_toji_owner_08', layerIndex: 198, shape: "polygon" },
+        { id: 'cheonan_toji_owner_09', layerIndex: 199, shape: "polygon" },
+        { id: 'cheonan_toji_use_1110', layerIndex: 200, shape: "polygon" },
+        { id: 'cheonan_toji_use_1120', layerIndex: 201, shape: "polygon" },
+        { id: 'cheonan_toji_use_1210', layerIndex: 202, shape: "polygon" },
+        { id: 'cheonan_toji_use_1220', layerIndex: 203, shape: "polygon" },
+        { id: 'cheonan_toji_use_2110', layerIndex: 204, shape: "polygon" },
+        { id: 'cheonan_toji_use_2120', layerIndex: 205, shape: "polygon" },
+        { id: 'cheonan_toji_use_2210', layerIndex: 206, shape: "polygon" },
+        { id: 'cheonan_toji_use_2220', layerIndex: 207, shape: "polygon" },
+        { id: 'cheonan_toji_use_2230', layerIndex: 208, shape: "polygon" },
+        { id: 'cheonan_toji_use_2310', layerIndex: 209, shape: "polygon" },
+        { id: 'cheonan_toji_use_2320', layerIndex: 210, shape: "polygon" },
+        { id: 'cheonan_toji_use_2330', layerIndex: 211, shape: "polygon" },
+        { id: 'cheonan_toji_use_2340', layerIndex: 212, shape: "polygon" },
+        { id: 'cheonan_toji_use_3110', layerIndex: 213, shape: "polygon" },
+        { id: 'cheonan_toji_use_3120', layerIndex: 214, shape: "polygon" },
+        { id: 'cheonan_toji_use_3130', layerIndex: 215, shape: "polygon" },
+        { id: 'cheonan_toji_use_3140', layerIndex: 216, shape: "polygon" },
+        { id: 'cheonan_toji_use_3210', layerIndex: 217, shape: "polygon" },
+        { id: 'cheonan_toji_use_3220', layerIndex: 218, shape: "polygon" },
+        { id: 'cheonan_toji_use_3310', layerIndex: 219, shape: "polygon" },
+        { id: 'cheonan_toji_use_3320', layerIndex: 220, shape: "polygon" },
+        { id: 'cheonan_toji_use_3410', layerIndex: 221, shape: "polygon" },
+        { id: 'cheonan_toji_use_3420', layerIndex: 222, shape: "polygon" },
+        { id: 'cheonan_toji_use_3430', layerIndex: 223, shape: "polygon" },
+        { id: 'cheonan_toji_use_3440', layerIndex: 224, shape: "polygon" },
+        { id: 'cheonan_toji_use_3510', layerIndex: 225, shape: "polygon" },
+        { id: 'cheonan_toji_use_3520', layerIndex: 226, shape: "polygon" },
+        { id: 'cheonan_toji_use_3530', layerIndex: 227, shape: "polygon" },
+        { id: 'cheonan_toji_use_3550', layerIndex: 228, shape: "polygon" },
+        { id: 'cheonan_toji_use_4210', layerIndex: 229, shape: "polygon" },
+        { id: 'cheonan_toji_use_4310', layerIndex: 230, shape: "polygon" },
+        { id: 'cheonan_library_20240610', layerIndex: 231, shape: "dot" },
+        { id: 'cheonan_shd_20240610', layerIndex: 232, shape: "none"},
+        { id: 'cheonan_dng_gm', layerIndex: 233, shape: "polygon" },
+        { id: 'cheonan_sbg_gm', layerIndex: 234, shape: "polygon" },
+        { id: 'cheonan_pub_wifi', layerIndex: 235, shape: "dot" },
+        { id: 'cheonan_civil_service_machines', layerIndex: 236, shape: "dot" },
+        { id: 'cheonan_digital_b00_14118', layerIndex: 237, shape: "line" },
+        { id: 'cheonan_digital_b00_14311', layerIndex: 238, shape: "line" },
+        { id: 'cheonan_digital_b00_14216', layerIndex: 239, shape: "line" },
+        { id: 'cheonan_digital_b00_14219', layerIndex: 240, shape: "line" },
+        { id: 'cheonan_digital_b00_14116', layerIndex: 241, shape: "line" },
+        { id: 'cheonan_digital_b00_14221', layerIndex: 242, shape: "line" },
+        { id: 'cheonan_digital_b00_14234', layerIndex: 243, shape: "line" },
+        { id: 'cheonan_digital_b00_14333', layerIndex: 244, shape: "line" },
+        { id: 'cheonan_digital_b00_14324', layerIndex: 245, shape: "line" },
+        { id: 'cheonan_digital_b00_14115', layerIndex: 246, shape: "line" },
+        { id: 'cheonan_digital_b00_14113', layerIndex: 247, shape: "line" },
+        { id: 'cheonan_digital_b00_14117', layerIndex: 248, shape: "line" },
+        { id: 'cheonan_digital_b00_14235', layerIndex: 249, shape: "line" },
+        { id: 'cheonan_digital_b00_14217', layerIndex: 250, shape: "line" },
+        { id: 'cheonan_digital_b00_14611', layerIndex: 251, shape: "line" },
+        { id: 'cheonan_digital_b00_14218', layerIndex: 252, shape: "line" },
+        { id: 'cheonan_digital_b00_14112', layerIndex: 253, shape: "line" },
+        { id: 'cheonan_digital_b00_14111', layerIndex: 254, shape: "line" },
+        { id: 'cheonan_digital_b00_14524', layerIndex: 255, shape: "line" },
+        { id: 'cheonan_digital_b00_14224', layerIndex: 256, shape: "line" },
+        { id: 'cheonan_digital_b00_14411', layerIndex: 257, shape: "line" },
+        { id: 'cheonan_digital_b00_14511', layerIndex: 258, shape: "line" },
+        { id: 'cheonan_digital_b00_24120', layerIndex: 259, shape: "line" },
+        { id: 'cheonan_digital_b00_24127', layerIndex: 260, shape: "line" },
+        { id: 'cheonan_digital_g00_22312', layerIndex: 261, shape: "line" },
+        { id: 'cheonan_digital_g00_22322', layerIndex: 262, shape: "line" },
+        { id: 'cheonan_digital_g00_22313', layerIndex: 263, shape: "line" },
+        { id: 'cheonan_digital_g00_22323', layerIndex: 264, shape: "line" },
+        { id: 'cheonan_digital_g00_38210', layerIndex: 265, shape: "line" },
+        { id: 'cheonan_digital_g00_38232', layerIndex: 266, shape: "line" },
+        { id: 'cheonan_digital_g00_37214', layerIndex: 267, shape: "line" },
+        { id: 'cheonan_digital_g00_38231', layerIndex: 268, shape: "line" },
+        { id: 'cheonan_digital_g00_37213', layerIndex: 269, shape: "line" },
+        { id: 'cheonan_digital_g00_38233', layerIndex: 270, shape: "line" },
+        { id: 'cheonan_digital_g00_38214', layerIndex: 271, shape: "line" },
+        { id: 'cheonan_digital_h00_17334', layerIndex: 272, shape: "line" },
+        { id: 'cheonan_digital_h00_27311', layerIndex: 273, shape: "line" },
+        { id: 'cheonan_digital_h00_27312', layerIndex: 274, shape: "line" },
+        { id: 'cheonan_digital_h00_27313', layerIndex: 275, shape: "line" },
+        { id: 'cheonan_digital_f00_17114', layerIndex: 276, shape: "line" },
+        { id: 'cheonan_digital_f00_17111', layerIndex: 277, shape: "line" },
+        { id: 'cheonan_digital_f00_17124', layerIndex: 278, shape: "line" },
+        { id: 'cheonan_digital_f00_17121', layerIndex: 279, shape: "line" },
+        { id: 'cheonan_digital_f00_27217', layerIndex: 280, shape: "line" },
+        { id: 'cheonan_digital_f00_37221', layerIndex: 281, shape: "line" },
+        { id: 'cheonan_digital_f00_37223', layerIndex: 282, shape: "line" },
+        { id: 'cheonan_digital_f00_37222', layerIndex: 283, shape: "line" },
+        { id: 'cheonan_digital_f00_47224', layerIndex: 284, shape: "line" },
+        { id: 'cheonan_digital_f00_47225', layerIndex: 285, shape: "line" },
+        { id: 'cheonan_digital_e00_32111', layerIndex: 286, shape: "line" },
+        { id: 'cheonan_digital_e00_62271', layerIndex: 287, shape: "line" },
+        { id: 'cheonan_digital_e00_62273', layerIndex: 288, shape: "line" },
+        { id: 'cheonan_digital_e00_42326', layerIndex: 289, shape: "line" },
+        { id: 'cheonan_digital_e00_22112', layerIndex: 290, shape: "line" },
+        { id: 'cheonan_digital_e00_22115', layerIndex: 291, shape: "line" },
+        { id: 'cheonan_digital_e00_52114', layerIndex: 292, shape: "line" },
+        { id: 'cheonan_digital_c00_62242', layerIndex: 293, shape: "line" },
+        { id: 'cheonan_digital_c00_62243', layerIndex: 294, shape: "line" },
+        { id: 'cheonan_digital_c00_62241', layerIndex: 295, shape: "line" },
+        { id: 'cheonan_digital_c00_76116', layerIndex: 296, shape: "line" },
+        { id: 'cheonan_digital_c00_76117', layerIndex: 297, shape: "line" },
+        { id: 'cheonan_digital_c00_96311', layerIndex: 298, shape: "line" },
+        { id: 'cheonan_digital_c00_52231', layerIndex: 299, shape: "line" },
+        { id: 'cheonan_digital_c00_52211', layerIndex: 300, shape: "line" },
+        { id: 'cheonan_digital_c00_52212', layerIndex: 301, shape: "line" },
+        { id: 'cheonan_digital_d00_15213', layerIndex: 302, shape: "line" },
+        { id: 'cheonan_digital_d00_15211', layerIndex: 303, shape: "line" },
+        { id: 'cheonan_digital_d00_15212', layerIndex: 304, shape: "line" },
+        { id: 'cheonan_digital_d00_45214', layerIndex: 305, shape: "line" },
+        { id: 'cheonan_digital_d00_25111', layerIndex: 306, shape: "line" },
+        { id: 'cheonan_digital_a00_73340', layerIndex: 307, shape: "line" },
+        { id: 'cheonan_digital_a00_71211', layerIndex: 308, shape: "line" },
+        { id: 'cheonan_digital_a00_71213', layerIndex: 309, shape: "line" },
+        { id: 'cheonan_digital_a00_13111', layerIndex: 310, shape: "line" },
+        { id: 'cheonan_digital_a00_13116', layerIndex: 311, shape: "line" },
+        { id: 'cheonan_digital_a00_13117', layerIndex: 312, shape: "line" },
+        { id: 'cheonan_digital_a00_13115', layerIndex: 313, shape: "line" },
+        { id: 'cheonan_digital_a00_13112', layerIndex: 314, shape: "line" },
+        { id: 'cheonan_digital_a00_13113', layerIndex: 315, shape: "line" },
+        { id: 'cheonan_digital_a00_13431', layerIndex: 316, shape: "line" },
+        { id: 'cheonan_digital_a00_13432', layerIndex: 317, shape: "line" },
+        { id: 'cheonan_digital_a00_13433', layerIndex: 318, shape: "line" },
+        { id: 'cheonan_digital_a00_13118', layerIndex: 319, shape: "line" },
+        { id: 'cheonan_digital_a00_23211', layerIndex: 320, shape: "line" },
+        { id: 'cheonan_digital_a00_23216', layerIndex: 321, shape: "line" },
+        { id: 'cheonan_digital_a00_23217', layerIndex: 322, shape: "line" },
+        { id: 'cheonan_digital_a00_23215', layerIndex: 323, shape: "line" },
+        { id: 'cheonan_digital_a00_23212', layerIndex: 324, shape: "line" },
+        { id: 'cheonan_digital_a00_23213', layerIndex: 325, shape: "line" },
+        { id: 'cheonan_digital_a00_23119', layerIndex: 326, shape: "line" },
+        { id: 'cheonan_digital_a00_53326', layerIndex: 327, shape: "line" },
+        { id: 'cheonan_digital_a00_63321', layerIndex: 328, shape: "line" },
+        { id: 'cheonan_digital_a00_33324', layerIndex: 329, shape: "line" },
+        { id: 'cheonan_digital_a00_33327', layerIndex: 330, shape: "line" },
+        { id: 'cheonan_digital_a00_93351', layerIndex: 331, shape: "line" },
+        { id: 'cheonan_digital_a00_93352', layerIndex: 332, shape: "line" },
+        { id: 'cheonan_digital_a00_43325', layerIndex: 333, shape: "line" },
+        { id: 'gwangju_flow_pop', layerIndex: 334, shape: "line"}
+    ];
+    const layers_style = [
+        { style : "ne:dot_style_amethyst_purple", shape : "dot", color : "#9b59b6" },
+        { style : "ne:dot_style_bright_yellow", shape : "dot", color : "#f1c40f" },
+        { style : "ne:dot_style_carmine_red", shape : "dot", color : "#e74c3c" },
+        { style : "ne:dot_style_carrot_orange", shape : "dot", color : "#e67e22" },
+        { style : "ne:dot_style_dark_blue_gray", shape : "dot", color : "#34495e" },
+        { style : "ne:dot_style_dodger_blue", shape : "dot", color : "#3498db" },
+        { style : "ne:dot_style_emerald_green", shape : "dot", color : "#2ecc71" },
+        { style : "ne:dot_style_golden_yellow", shape : "dot", color : "#f39c12" },
+        { style : "ne:dot_style_lime_green", shape : "dot", color : "#66b032" },
+        { style : "ne:dot_style_medium_blue", shape : "dot", color : "#1f77b4" },
+        { style : "ne:dot_style_pumpkin_orange", shape : "dot", color : "#d35400" },
+        { style : "ne:dot_style_purple", shape : "dot", color : "#9b59b6" },
+        { style : "ne:dot_style_purple_dark", shape : "dot", color : "#8e44ad" },
+        { style : "ne:dot_style_red", shape : "dot", color : "#c43c39" },
+        { style : "ne:dot_style_sky_blue", shape : "dot", color : "#4f9db8" },
+        { style : "ne:dot_style_teal", shape : "dot", color : "#16a085" },
+        { style : "ne:dot_style_tomato", shape : "dot", color : "#ff6347" },
+        { style : "ne:dot_style_turquoise", shape : "dot", color : "#1abc9c" },
+        { style : "ne:dot_style_vivid_blue", shape : "dot", color : "#2d87d3" },
+        { style : "ne:dot_style_yellow", shape : "dot", color : "#f4b400" },
+        { style : "ne:line_style_amethyst_purple", shape : "line", color : "#9b59b6" },
+        { style : "ne:line_style_bright_yellow", shape : "line", color : "#f1c40f" },
+        { style : "ne:line_style_carmine_red", shape : "line", color : "#e74c3c" },
+        { style : "ne:line_style_carrot_orange", shape : "line", color : "#e67e22" },
+        { style : "ne:line_style_dark_blue_gray", shape : "line", color : "#34495e" },
+        { style : "ne:line_style_dodger_blue", shape : "line", color : "#3498db" },
+        { style : "ne:line_style_emerald_green", shape : "line", color : "#2ecc71" },
+        { style : "ne:line_style_golden_yellow", shape : "line", color : "#f39c12" },
+        { style : "ne:line_style_lime_green", shape : "line", color : "#66b032" },
+        { style : "ne:line_style_medium_blue", shape : "line", color : "#1f77b4" },
+        { style : "ne:line_style_pumpkin_orange", shape : "line", color : "#d35400" },
+        { style : "ne:line_style_purple", shape : "line", color : "#9b59b6" },
+        { style : "ne:line_style_purple_dark", shape : "line", color : "#8e44ad" },
+        { style : "ne:line_style_red", shape : "line", color : "#c43c39" },
+        { style : "ne:line_style_sky_blue", shape : "line", color : "#4f9db8" },
+        { style : "ne:line_style_teal", shape : "line", color : "#16a085" },
+        { style : "ne:line_style_tomato", shape : "line", color : "#ff6347" },
+        { style : "ne:line_style_turquoise", shape : "line", color : "#1abc9c" },
+        { style : "ne:line_style_vivid_blue", shape : "line", color : "#2d87d3" },
+        { style : "ne:line_style_yellow", shape : "line", color : "#f4b400" },
+        { style : "ne:polegon_style_amethyst_purple", shape : "polygon", color : "#9b59b6" },
+        { style : "ne:polegon_style_bright_yellow", shape : "polygon", color : "#f1c40f" },
+        { style : "ne:polegon_style_carmine_red", shape : "polygon", color : "#e74c3c" },
+        { style : "ne:polegon_style_carrot_orange", shape : "polygon", color : "#e67e22" },
+        { style : "ne:polegon_style_dark_blue_gray", shape : "polygon", color : "#34495e" },
+        { style : "ne:polegon_style_dodger_blue", shape : "polygon", color : "#3498db" },
+        { style : "ne:polegon_style_emerald_green", shape : "polygon", color : "#2ecc71" },
+        { style : "ne:polegon_style_golden_yellow", shape : "polygon", color : "#f39c12" },
+        { style : "ne:polegon_style_lime_green", shape : "polygon", color : "#66b032" },
+        { style : "ne:polegon_style_medium_blue", shape : "polygon", color : "#1f77b4" },
+        { style : "ne:polegon_style_pumpkin_orange", shape : "polygon", color : "#d35400" },
+        { style : "ne:polegon_style_purple", shape : "polygon", color : "#9b59b6" },
+        { style : "ne:polegon_style_purple_dark", shape : "polygon", color : "#8e44ad" },
+        { style : "ne:polegon_style_red", shape : "polygon", color : "#c43c39" },
+        { style : "ne:polegon_style_sky_blue", shape : "polygon", color : "#4f9db8" },
+        { style : "ne:polegon_style_teal", shape : "polygon", color : "#16a085" },
+        { style : "ne:polegon_style_tomato", shape : "polygon", color : "#ff6347" },
+        { style : "ne:polegon_style_turquoise", shape : "polygon", color : "#1abc9c" },
+        { style : "ne:polegon_style_vivid_blue", shape : "polygon", color : "#2d87d3" },
+        { style : "ne:polegon_style_yellow", shape : "polygon", color : "#f4b400" }
 
 
-      // 클릭한 위치 이름
-      var url1 = map.getLayers().item(1).getSource().getGetFeatureInfoUrl(coordinate, resolution, projection, {
-        'INFO_FORMAT': 'application/json'
-      });
-      if (url1) {
-        fetch(url1)
-                .then(response => response.json())
-                .then(data => {
-                  const name = data.features[0].properties.name;
-                  let text = document.getElementById("map_text");
-                  text.textContent = '현재 클릭한 곳은 ' + name + ' 입니다.';
-                })
-                .catch(error => console.error('Error fetching feature info:', error));
-      }
+    ];
 
-      // 클릭한 위치 거주 인원
-      var url2 = map.getLayers().item(2).getSource().getGetFeatureInfoUrl(coordinate, resolution, projection, {
-        'INFO_FORMAT': 'application/json'
-      });
-      if (url2) {
-        fetch(url2)
-                .then(response => response.json())
-                .then(data => {
-                  if (data.features && data.features[0] && data.features[0].properties && data.features[0].properties.val) {
-                    const val = data.features[0].properties.val;
-                    let text = document.getElementById("population_text");
-                    text.textContent = '현재 클릭한 곳의 거주 인원는 약 ' + val + '명 입니다.';
-                  } else {
-                    let text = document.getElementById("population_text");
-                    text.textContent = '이곳의 거주 인원은 없는 것 같습니다.';
-                  }
-                })
-                .catch(error => {
-                  console.error('Error fetching feature info:', error);
-                  let text = document.getElementById("population_text");
-                  text.textContent = '이곳의 거주 인원은 없는 것 같습니다.';
+
+    const regions = {
+        gwangju: { center: [35.1595, 126.8526], zoom: 11 },  // 광주의 중심 좌표 및 줌 레벨
+        cheonan: { center: [36.8154, 127.1523], zoom: 12 }   // 천안의 중심 좌표 및 줌 레벨
+    };
+    // 현재 지역 상태 저장
+    let currentRegion = 'gwangju'; // 초기값: 광주
+    let activeLayers = []; // 현재 활성화된 레이어들을 저장할 배열
+
+
+    // 초기화 상태 저장
+    const initialCheckboxState = {};
+    layers.forEach(layerInfo => {
+        initialCheckboxState[layerInfo.id] = false; // 모든 체크박스 기본값은 false
+    });
+    const initialDraggableListHTML = ''; // 초기 우선순위 리스트는 비어 있음
+
+    // 모든 활성화된 레이어와 우선순위 리스트 초기화 및 복원
+    function resetToInitialState() {
+        // 지도에서 활성화된 레이어 제거
+        activeLayers.forEach(layer => {
+            map.removeLayer(layer);
+        });
+        activeLayers = []; // 활성화된 레이어 리스트 초기화
+
+        // 체크박스 상태 초기화
+        layers.forEach(layerInfo => {
+            const checkbox = document.getElementById(layerInfo.id); // 왼쪽 체크박스
+            const searchCheckbox = document.getElementById('search-' + layerInfo.id); // 검색 체크박스
+            const initialState = initialCheckboxState[layerInfo.id];
+            if (checkbox) checkbox.checked = initialState; // 초기 상태로 복원
+            if (searchCheckbox) searchCheckbox.checked = initialState; // 초기 상태로 복원
+        });
+
+        // 우선순위 리스트 초기화
+        const draggableList = document.getElementById('draggable-checkbox-list');
+        draggableList.innerHTML = initialDraggableListHTML; // 초기 HTML로 복원
+    }
+
+    // 광주 메뉴 보이기
+    document.getElementById('submenu-list').style.display = 'block';
+    // 천안 메뉴 숨기기
+    document.getElementById('submenu-list2').style.display = 'none';
+
+    // 광주 버튼 클릭 시
+    document.getElementById('btn-gwangju').addEventListener('click', function() {
+        // 광주 중심으로 이동하고 줌 레벨 설정
+        map.setView(regions.gwangju.center, regions.gwangju.zoom);
+        currentRegion = 'gwangju'; // 현재 지역 설정
+        document.getElementById('layer-search').value = ''; // 검색창 초기화
+        resetToInitialState()
+        filterList(); // 검색 결과 갱신
+        // 광주 메뉴 보이기
+        document.getElementById('submenu-list').style.display = 'block';
+
+        // 천안 메뉴 숨기기
+        document.getElementById('submenu-list2').style.display = 'none';
+        gwangjuTab.classList.remove("hidden");
+        cheonanTab.classList.add("hidden");
+        // 광주 탭 첫 번째 버튼 활성화
+        const gwangjuButtons = gwangjuTab.querySelectorAll(".tab-button");
+        gwangjuButtons.forEach(button => button.classList.remove("active"));
+        gwangjuButtons[0].classList.add("active");
+        const gwangjuTabContent = document.querySelectorAll(".tab-content");
+        gwangjuTabContent.forEach((input) => (input.style.display = "none"));
+        gwangjuTabContent[0].style.display = "block";
+        activeTab = 'list';
+        category = 'all';
+        submenuList.forEach((li) => li.classList.remove('hidden'));
+    });
+    
+ // 천안 버튼 클릭 시
+    document.getElementById('btn-cheonan').addEventListener('click', function() {
+        // 천안 중심으로 이동하고 줌 레벨 설정
+        map.setView(regions.cheonan.center, regions.cheonan.zoom);
+        currentRegion = 'cheonan'; // 현재 지역 설정
+        document.getElementById('layer-search').value = ''; // 검색창 초기화
+        resetToInitialState();
+        filterList(); // 검색 결과 갱신
+        // 천안 메뉴 보이기
+        document.getElementById('submenu-list2').style.display = 'block';
+
+        // 광주 메뉴 숨기기
+        document.getElementById('submenu-list').style.display = 'none';
+        gwangjuTab.classList.add("hidden");
+        cheonanTab.classList.remove("hidden");
+        const cheonanButtons = cheonanTab.querySelectorAll(".tab-button");
+        cheonanButtons.forEach(button => button.classList.remove("active"));
+        cheonanButtons[0].classList.add("active");
+        const cheonanTabContent = document.querySelectorAll(".tab-content");
+        cheonanTabContent.forEach((content) => (content.style.display = "none"));
+        cheonanTabContent[4].style.display = "block";
+        activeTab = 'list2';
+        category = 'all';
+        submenuList2.forEach((li) => li.classList.remove('hidden'));
+    });
+ 
+    // 지도 생성
+    var map = L.map('map',{zoomControl: false}).setView([35.1595, 126.8526], 13); // 위도, 경도, 줌 레벨 설정
+
+    var vworldLayer = L.tileLayer('https://xdworld.vworld.kr/2d/Base/service/{z}/{x}/{y}.png', {
+        "minZoom": 6,
+        "maxZoom": 19,
+        "maxNativeZoom": 19,
+        "attribution": '&copy; <a href="http://www.vworld.kr/">vworld</a> contributors'
+    });
+
+    var hybrid = L.tileLayer(`http://api.vworld.kr/req/wmts/1.0.0/${vworldKey}/Hybrid/{z}/{y}/{x}.png`, {
+        attribution: '&copy; VWorld',
+        maxZoom: 19,
+        minZoom: 6,
+        zIndex: 10  // zIndex 설정
+    });
+    var satellite = L.tileLayer(`http://api.vworld.kr/req/wmts/1.1.1/${vworldKey}/Satellite/{z}/{y}/{x}.jpeg`, {
+        attribution: '&copy; VWorld',
+        maxZoom: 19,
+        minZoom: 6,
+        zIndex: 5  // zIndex 설정
+    });
+    vworldLayer.addTo(map);
+    // 축척선 추가
+    L.control.scale({ position: 'bottomright' }).addTo(map);
+    L.control.zoom({position: 'bottomright'}).addTo(map);
+
+    // 일반지도, 위성지도 띄우는거 선택
+    var general_map = document.getElementById('general_map');
+    var satellite_map = document.getElementById('satellite_map');
+    var satellite_true = true;
+    general_map.addEventListener('click', function (){
+        if(satellite){
+            hybrid.remove();
+            satellite.remove();
+        }
+        satellite_true = !satellite_true;
+    })
+    satellite_map.addEventListener('click', function (){
+        // 상태에 따라 다른 작업 실행
+        if (satellite_true) {
+            console.log('True: 위성지도를 활성화');
+            hybrid.addTo(map);
+            satellite.addTo(map);
+        }
+        // 상태를 변경 (true <-> false)
+        satellite_true = !satellite_true;
+    })
+
+    // 지도 컨테이너와 자식 요소들 가져오기
+    const mapContainer = document.getElementById('map');
+    const childElements = mapContainer.querySelectorAll('*'); // #map 아래의 모든 자식 요소 선택
+    // 모달과 닫기 버튼 선택
+    const modal = document.getElementById('modal');
+    const modalClose = document.getElementById('modal-close');
+    const modalContent = document.getElementById('modal-content');
+
+    document.getElementById('modal').addEventListener('wheel', (e) => {
+        e.stopPropagation();
+    });
+
+    // 각 자식 요소에 마우스 이벤트 추가
+    childElements.forEach(element => {
+        // 마우스가 자식 요소 위에 올라가면 지도 상호작용 비활성화
+        element.addEventListener('mouseover', () => {
+            map.dragging.disable();
+            map.touchZoom.disable();
+            map.doubleClickZoom.disable();
+            map.scrollWheelZoom.disable();
+            map.off('click')
+        });
+
+        // 마우스가 자식 요소에서 벗어나면 지도 상호작용 활성화
+        element.addEventListener('mouseout', () => {
+            map.dragging.enable();
+            map.touchZoom.enable();
+            map.doubleClickZoom.enable();
+            map.scrollWheelZoom.enable();
+            function getFeatureInfoUrl(map, layer, latlng, bufferInPixels = 10) {
+                const point = map.latLngToContainerPoint(latlng, map.getZoom());
+                const size = map.getSize();
+
+                const params = {
+                    request: 'GetFeatureInfo',
+                    service: 'WMS',
+                    srs: 'EPSG:4326',
+                    styles: '',
+                    transparent: true,
+                    version: '1.1.1',
+                    format: 'image/png',
+                    bbox: map.getBounds().toBBoxString(),
+                    height: size.y,
+                    width: size.x,
+                    layers: layer.options.layers,
+                    query_layers: layer.options.layers,
+                    info_format: 'application/json',
+                    x: Math.round(point.x),
+                    y: Math.round(point.y),
+                    i: Math.round(point.x - bufferInPixels), // 좌측 버퍼
+                    j: Math.round(point.y - bufferInPixels), // 상단 버퍼
+                    i_max: Math.round(point.x + bufferInPixels), // 우측 버퍼
+                    j_max: Math.round(point.y + bufferInPixels), // 하단 버퍼
+                };
+                return layer._url + L.Util.getParamString(params, layer._url, true);
+            }
+         // 지도 클릭 이벤트
+            map.on('click', function (e) {
+                const latlng = e.latlng;
+
+                // 모든 활성화된 레이어에서 데이터를 가져옴
+                const fetchPromises = activeLayers.map(layer => {
+                    const url = getFeatureInfoUrl(map, layer, latlng);
+                    return fetch(url)
+                        .then(response => response.json())
+                        .then(data => ({
+                            layerName: layer.options.layers, // 레이어 이름 추가
+                            data: data,
+                        }))
+                        .catch(error => {
+                            console.error(`Error fetching feature info for layer ${layer.options.layers}:`, error);
+                            return null; // 오류가 발생한 경우 null 반환
+                        });
                 });
-      }
+
+                // 모든 레이어의 데이터 처리
+                Promise.all(fetchPromises).then(results => {
+                    // 데이터를 처리할 컨테이너
+                    const modal = document.getElementById('modal');
+                    const modalContent = document.getElementById('modal-content');
+                    let contentHtml = '';
+
+                    results.forEach(result => {
+                        if (result && result.data && result.data.features && result.data.features.length > 0) {
+                            contentHtml += `<h3 id="${result.layerName}">레이어: ${result.layerName}</h3><ul>`;
+                        }
+                    });
+
+                    if (contentHtml) {
+                        modalContent.innerHTML = contentHtml;
+                        modal.style.display = 'block'; // 모달창 열기
+
+                     	// 처음에 모든 레이어 이름을 모달에 표시
+                        results.forEach(result => {
+                            const layerElement = document.getElementById(result.layerName);
+                            if (layerElement) {
+                                layerElement.addEventListener('click', function () {
+                                    // 클릭된 레이어의 데이터만 모달에 표시
+                                    let layerDataHtml = `<h3>레이어: ${result.layerName}</h3><ul>`;
+                                    const properties = result.data.features[0].properties;
+                                    for (const [key, value] of Object.entries(properties)) {
+                                        layerDataHtml += `<li><strong>${key}:</strong> ${value}</li>`;
+                                    }
+                                    layerDataHtml += `</ul>`;
+
+                                    // 모달에 해당 레이어의 데이터만 업데이트
+                                    modalContent.innerHTML = layerDataHtml;
+                                });
+                            }
+                        });
+                    } else {
+                        console.log('겹치는 레이어에서 데이터가 없습니다.');
+                    }
+                });
+            });
+        });
     });
-  });
+    // 모달 닫기 이벤트
+    modalClose.addEventListener('click', function (e) {
+        modal.style.display = 'none';
+    });
+
+    function createWmsLayer(layerId, layerIndex, shape) {
+        // 기본 WMS 레이어 생성
+        const layerOptions = {
+            layers: `ne:${layerId}`,  // 'ne:' 접두사 추가
+            format: 'image/png',
+            transparent: true,
+            attribution: '&copy; GeoServer Contributors',
+            zIndex: layerIndex  // 숫자로 zIndex 설정
+        };
+     // shape가 "none"이 아닌 경우 스타일을 적용
+        if (shape !== "none") {
+            // shape에 맞는 스타일 객체들을 필터링
+            const filteredStyles = layers_style.filter(styleObj => styleObj.shape === shape);
+
+            // 필터링된 스타일들 중에서 랜덤으로 하나 선택
+            if (filteredStyles.length > 0) {
+                const randomStyle = filteredStyles[Math.floor(Math.random() * filteredStyles.length)];
+                layerOptions.styles = randomStyle.style;  // 랜덤 스타일을 적용
+            }
+        }
+
+     // WMS 레이어 생성
+        const layer = L.tileLayer.wms('http://133.186.146.80:8080/geoserver/ne/wms', layerOptions);
+        layer.options.id = `ne:${layerId}`;
+        return layer;
+    }
+        
+    // 전체화면 버튼 구현
+    const fullscreenButton = document.getElementById('fullscreenButton');
+    fullscreenButton.addEventListener('click', () => {
+        if (mapContainer.requestFullscreen) {
+            mapContainer.requestFullscreen(); // 표준 API
+        } else if (mapContainer.webkitRequestFullscreen) {
+            mapContainer.webkitRequestFullscreen(); // Safari
+        } else if (mapContainer.msRequestFullscreen) {
+            mapContainer.msRequestFullscreen(); // IE/Edge
+        } else {
+            alert('전체화면 API가 지원되지 않는 브라우저입니다.');
+        }
+    });
+
+    // 입지분석 레이어 on/off 버튼
+    const analysisBtn = document.getElementById('analysisBtn');
+    const analysisLayer = document.getElementById('analysis-layer');
+    const analysisCancel = document.getElementById('analysis-cancel');
+    analysisCancel.addEventListener('click', ()=>{
+        if (analysisLayer.style.display === 'flex' || analysisLayer.style.display === '') {
+            analysisLayer.style.display = 'none';
+            analysisBtn.classList.remove('active');
+        }
+    });
+    analysisBtn.addEventListener('click', () => {
+        if (analysisLayer.style.display === 'flex' || analysisLayer.style.display === '') {
+            analysisLayer.style.display = 'none'; // 안 보이게 설정
+            analysisBtn.classList.remove('active');
+        }
+        else if (analysisLayer.style.display === 'none') {
+            analysisLayer.style.display = 'flex'; // 보이게 설정
+            analysisBtn.classList.remove('active');
+        }
+    });
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const tabs = document.querySelectorAll(".tab-button");
+        const tabContents = document.querySelectorAll(".tab-content");
+
+        // 탭 전환 기능
+        tabs.forEach((tab) => {
+            tab.addEventListener("click", () => {
+                // 모든 탭 비활성화
+                tabs.forEach((t) => t.classList.remove("active"));
+                tabContents.forEach((content) => (content.style.display = "none"));
+
+                // 선택한 탭 활성화
+                tab.classList.add("active");
+                const target = tab.getAttribute("data-tab");
+                document.getElementById(target).style.display = "block";
+            });
+        });
+    });
+
+    // 레이어 배열을 돌면서 WMS 레이어 생성
+    const layerInstances = {};  // 레이어 인스턴스를 저장할 객체
+    console.log(layerInstances);
+
+    // 레이어 추가 삭제
+    layers.forEach(function(layerInfo) {
+    	const wmsLayer = createWmsLayer(layerInfo.id, layerInfo.layerIndex*10, layerInfo.shape);
+        layerInstances[layerInfo.id] = wmsLayer;  // WMS 레이어를 객체에 저장
+
+        // 체크박스에 이벤트 리스너 추가
+        var checkbox = document.getElementById(layerInfo.id);  // 왼쪽 체크박스를 찾음
+        var rightCheckbox = document.getElementById('search-' + layerInfo.id);  // 오른쪽 체크박스 찾기
+
+        checkbox.addEventListener('change', function(event) {
+            if (event.target.checked) {
+                map.addLayer(wmsLayer);  // Leaflet에서 레이어를 추가하는 방법
+                activeLayers.push(wmsLayer);
+                // 레이어 우선순위에 추가
+                const ul = document.getElementById("draggable-checkbox-list");
+                const newLi = document.createElement("li");
+                newLi.setAttribute("draggable", "true");
+                newLi.setAttribute("id", layerInfo.id + '-layer');
+
+                const newBtn = document.createElement("button");
+                newBtn.setAttribute("id", layerInfo.id);
+                newBtn.setAttribute("class", "cancel-layer");
+
+                const newDragImg = document.createElement("img");
+                newDragImg.setAttribute("src", "/images/icons8-메뉴.svg");
+                newDragImg.setAttribute("style", "width: 20px; height: 20px");
+                newDragImg.setAttribute("draggable", "false");
+
+                const newLabel = document.createElement("label");
+                newLabel.setAttribute("for", layerInfo.id + '-label');
+
+                var findName = layer_names.find(layer => layer.id === layerInfo.id);
+                newLabel.textContent = findName.name;
+
+                const newCancelImg = document.createElement("img");
+                newCancelImg.setAttribute("src", "/images/icons8-취소.svg");
+                newCancelImg.setAttribute("style", "width: 20px; height: 20px");
+                newCancelImg.setAttribute("draggable", "false");
+
+                newBtn.appendChild(newCancelImg);
+                newLi.appendChild(newDragImg);
+                newLi.appendChild(newLabel);
+                newLi.appendChild(newBtn);
+                ul.appendChild(newLi);
+                
+                var searchBox1 = document.getElementById('search-' + layerInfo.id);
+                if (searchBox1 !== null) {
+                    searchBox1.checked = true;
+                }
+                
+                // cancel 버튼 클릭 이벤트 추가
+                newBtn.addEventListener('click', function() {
+                    var searchBox = document.getElementById('search-' + layerInfo.id);
+                    // li 태그 삭제
+                    newLi.remove();
+
+                    // 체크박스 해제
+                    checkbox.checked = false;
+                    if (searchBox !== null) {
+                        searchBox.checked = false;
+                    }
+
+                    // WMS 레이어 제거
+                    map.removeLayer(wmsLayer);  // Leaflet에서 지도에서 제거
+                    activeLayers = activeLayers.filter(layer => layer !== wmsLayer);
+                    var searchBox = document.getElementById('search-' + layerInfo.id);
+                    if (searchBox !== null) {
+                        searchBox.checked = false;
+                    }
+                });
+            } else {
+                const div_layer = document.querySelector(`#${layerInfo.id}-layer`);
+                if (div_layer)
+                    div_layer.remove();
+                map.removeLayer(wmsLayer);  // Leaflet에서 레이어를 제거하는 방법
+                activeLayers = activeLayers.filter(layer => layer !== wmsLayer);
+            }
+            // 오른쪽 체크박스 상태 동기화
+            if (rightCheckbox) {
+                rightCheckbox.checked = checkbox.checked;
+            }
+
+
+
+
+        });
+
+        // 오른쪽 체크박스의 상태가 바뀌었을 때 왼쪽 체크박스도 변경
+        if (rightCheckbox) {
+            rightCheckbox.addEventListener('change', function() {
+                if (rightCheckbox.checked) {
+                    checkbox.checked = true;  // 왼쪽 체크박스도 체크
+                    map.addLayer(wmsLayer);   // Leaflet에서 레이어를 추가
+                } else {
+                    checkbox.checked = false; // 왼쪽 체크박스 해제
+                    map.removeLayer(wmsLayer); // Leaflet에서 레이어를 제거
+                }
+            });
+        }
+
+        // 초기 상태를 체크박스에 맞춰 설정
+        if (checkbox.checked) {
+            map.addLayer(wmsLayer);  // 초기 상태가 체크되었으면 지도에 추가
+            if (rightCheckbox) {
+                rightCheckbox.checked = true;  // 오른쪽 체크박스도 체크
+            }
+        }
+    });
+    // 레이어 우선 순위
+    draggableList.addEventListener('dragend', () => {
+        if (draggedItem) {  // 드래그 항목이 있을 경우
+            draggedItem.classList.remove('dragging');  // 드래그 중 스타일 제거
+            if (placeholder) {  // 플레이스홀더가 존재할 경우
+                placeholder.parentNode.replaceChild(draggedItem, placeholder);  // 플레이스홀더를 드래그 항목으로 교체
+                placeholder = null;  // 플레이스홀더 제거
+            }
+            draggedItem = null;  // 드래그 항목 초기화
+
+            // 모든 li 요소를 배열로 가져오기
+            const items = Array.from(draggableList.querySelectorAll('li'));
+            layer_list = [];  // 배열 초기화 (이전에 저장된 값들을 제거)
+
+            items.forEach((item, index) => {
+                const label = item.querySelector('label');  // li 안의 label 요소 선택
+                const labelText = label.textContent.trim();  // label 텍스트 가져오기
+                const id = item.id.slice(0, -6);  // ID에서 _layer 부분 제거
+                layer_list.push({ index: 1000 - (index * 50), id: "ne:" + id, labelText: labelText });
+            });
+
+            // 현재 맵에 존재하는 레이어를 순회하면서 id가 일치하는 레이어의 zIndex를 수정
+            map.eachLayer(function (layer) {
+                const layerId = layer.options.id;  // Leaflet에서 레이어의 id는 options에 저장됩니다.
+                console.log(`Layer ID: ${layerId}`);  // 레이어 ID 확인
+
+                const matchingLayer = layer_list.find(item => item.id === layerId);
+
+                if (matchingLayer) {
+                    // 해당 레이어가 layer_list에 존재하면 zIndex 값을 수정
+                    console.log(`Layer ${layerId} zIndex updated to ${matchingLayer.index}`);
+                    layer.setZIndex(matchingLayer.index);  // zIndex 설정
+                } else {
+                    console.log(`No matching layer found for ${layerId}`);
+                }
+            });
+
+            console.log('layer_list:', layer_list);  // 최종적으로 저장된 배열 출력
+        }
+    });
+
+    // 메뉴 열고 닫기 토글 기능
+    function toggleMenu() {
+        const menu = document.getElementById('menu');
+        const menuButton = document.getElementById('menu-button');
+        menu.classList.toggle('hidden');
+        menuButton.classList.toggle('hidden');
+    }
+
+    // 서브메뉴 열고 닫기 토글 기능
+    function toggleSubmenu(event, element) {
+        event.preventDefault();
+        const listItem = element.parentElement;
+        const submenu = listItem.querySelector('.submenu');
+        if (submenu) {
+            submenu.classList.toggle('active');
+        }
+    }
+    // 검색 입력 필드에 이벤트 리스너 추가
+    document.getElementById('layer-search').addEventListener('input', filterList);
+
+    function filterList() {
+        const keyword = document.getElementById('layer-search').value.trim().toLowerCase();
+        const searchList = document.getElementById('search-list');
+
+        if (keyword === '') {
+            searchList.style.display = 'none'; // 검색어가 없으면 숨기기
+            searchList.innerHTML = ''; // 리스트 초기화
+            return;
+        }
+
+        searchList.style.display = 'block'; // 검색어가 있으면 표시
+        searchList.innerHTML = ''; // 기존 검색 결과 초기화
+
+        // 입력된 키워드와 일치하는 항목 필터링
+        const filteredItems = layer_names.filter(item =>
+            item.name.toLowerCase().includes(keyword)&&
+            item.id.startsWith(currentRegion)); // 현재 지역에 해당하는 ID만 포함);););
+
+        filteredItems.forEach(item => {
+            const listItem = document.createElement('li');
+            listItem.classList.add('check-item'); // li에 클래스 추가
+
+            const span = document.createElement('span');
+            span.classList.add('submenu-item');
+            span.textContent = item.name; // 레이어 이름 표시
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = item.id;
+            checkbox.id = 'search-' + item.id;
+            checkbox.checked = document.getElementById(item.id)?.checked || false; // 기존 체크박스 상태 동기화
+
+            listItem.appendChild(span);
+            listItem.appendChild(checkbox);
+            searchList.appendChild(listItem);
+
+            // 기존 체크박스와 동기화
+            checkbox.addEventListener('change', function (event) {
+                const originalCheckbox = document.getElementById(item.id);
+                originalCheckbox.checked = event.target.checked; // 원래 체크박스 상태 동기화
+
+                // 기존 이벤트 트리거
+                originalCheckbox.dispatchEvent(new Event('change'));
+            });
+        });
+    }
+    
+    function updateTab3Weights() {
+        const librarySlider = document.getElementById('input-tab2-2');
+        const libraryWeight = parseFloat(librarySlider.value).toFixed(1);
+        const busWeight = (1.0 - libraryWeight).toFixed(1);
+        // 업데이트된 값 표시
+        document.getElementById('library-weight').textContent = libraryWeight;
+        document.getElementById('bus-weight').textContent = busWeight;
+    }
+    function updateTab4Weights() {
+    	const demandSlider = document.getElementById('input-tab4-2');
+        const demandWeight =  parseFloat(demandSlider.value).toFixed(1);
+        const accessibilityWeight = (1.0 - demandWeight).toFixed(1);
+        // 업데이트된 값 표시
+        document.getElementById('demand-weight').textContent = demandWeight;
+        document.getElementById('accessibility-weight').textContent = accessibilityWeight;
+    }
 </script>
-<div class="footers"></div> <!-- 이거 지우면 안됨 -->
-<th:block th:replace="/layout/footer :: footerLayout"></th:block>
 </body>
 </html>

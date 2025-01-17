@@ -5,9 +5,10 @@
   <title>공지사항 작성</title>
   <link rel="stylesheet" href="/css/inquiryInsertForm.css">
   <link rel="stylesheet" href="/css/header.css">
+  <link rel="stylesheet" href="/css/footer.css">
 </head>
 <body>
-<th:block th:replace="/admin/adminHeader :: headerLayout"></th:block>
+<th:block th:replace="admin/adminHeader :: headerLayout"></th:block>
 <div class="insert-form ft">
   <div class="main-container">
     <div class="main-title">
@@ -30,11 +31,13 @@
         </div>
         <div class="form-actions">
           <button type="submit">작성완료</button>
-          <button type="button" onclick="window.location.href='/admin_notice';">취소</button>
+          <button type="button" onclick="window.location.href='/admin/admin_notice';">취소</button>
         </div>
       </form>
     </div>
   </div>
 </div>
 </body>
+<div class="footers"></div> <!-- 이거 지우면 안됨 -->
+<th:block th:replace="layout/footer :: footerLayout"></th:block>
 </html>

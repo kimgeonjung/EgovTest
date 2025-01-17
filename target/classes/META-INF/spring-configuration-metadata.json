@@ -1,0 +1,22 @@
+{
+  "groups": [
+    {
+      "name": "mail",
+      "type": "test4.mail.MailProperties",
+      "sourceType": "test4.mail.MailProperties"
+    }
+  ],
+  "properties": [
+    {
+      "name": "mail.password",
+      "type": "java.lang.String",
+      "sourceType": "test4.mail.MailProperties"
+    },
+    {
+      "name": "mail.sender",
+      "type": "java.lang.String",
+      "sourceType": "test4.mail.MailProperties"
+    }
+  ],
+  "hints": []
+}

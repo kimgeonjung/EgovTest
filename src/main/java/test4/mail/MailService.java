@@ -18,7 +18,6 @@ import java.util.Random;
 public class MailService {
     private final JavaMailSender mailSender;
     private static final String senderEmail = "";
-    private final JavaMailSender javaMailSender;
 
     private final Map<String, VerificationCode> verificationCode = new HashMap<>();
 
@@ -63,8 +62,9 @@ public class MailService {
         log.info("이메일: {}", sendEmail);
         log.info("인증번호: {}", number);
         try{
-            javaMailSender.send(message);
+        	mailSender.send(message);
         }catch (MailException e){
+        	log.error("메일 발송 중 오류: {}", e.getMessage(), e);
             throw new IllegalArgumentException("메일 발송 중 오류가 발생했습니다.");
         }
 

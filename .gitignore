@@ -13,6 +13,9 @@ local.properties
 .settings/
 .loadpath
 .recommenders
+uploads/
+application.properties
+mail.properties
 
 # External tool builders
 .externalToolBuilders/

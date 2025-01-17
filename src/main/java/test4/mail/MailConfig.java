@@ -1,13 +1,12 @@
 package test4.mail;
 
-import java.util.Properties;
-
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 
-import lombok.RequiredArgsConstructor;
+import java.util.Properties;
 
 @Configuration
 @RequiredArgsConstructor

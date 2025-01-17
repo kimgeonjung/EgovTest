@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>자주 묻는 질문</title>
+  <title>FAQ</title>
   <link rel="stylesheet" href="/css/faqDetail.css">
   <link rel="stylesheet" href="/css/footer.css">
   <link rel="stylesheet" href="/css/header.css">
 </head>
 <body>
-<th:block th:replace="/admin/adminHeader :: headerLayout"></th:block>
+<th:block th:replace="admin/adminHeader :: headerLayout"></th:block>
   <div class="post-detail-main ft">
     <div class="detail-container">
       <!-- 게시글 내용 표시 -->
@@ -19,13 +19,13 @@
         <label for="title">제목: </label><input type="text" th:value="${faq.title}" id="title" name="title" size="100px">
         <p class="post-meta">
           <span>관리자</span>|
-          <span th:text="'작성일: ' + ${#temporals.format(faq.createdAt, 'yyyy-MM-dd HH:mm:ss')}">작성일</span>
+          <span th:text="${#temporals.format(now, 'yyyy-MM-dd').equals(#temporals.format(faq.createdAt, 'yyyy-MM-dd'))} ? ${#temporals.format(faq.createdAt, 'HH:mm')} : ${#temporals.format(faq.createdAt, 'yyyy-MM-dd')}">작성일</span>
         </p>
         <div class="message-box">
-          <label for="question">Q: </label><textarea th:text="${faq.question}" id="question" name="question" style="width: 100%; height: 200px;"></textarea>
+          <label for="question">Q: </label><textarea th:text="${faq.question}" id="question" name="question"></textarea>
         </div>
         <div class="message-box">
-          <label for="answer">A: </label><textarea th:text="${faq.answer}" id="answer" name="answer" style="width: 100%; height: 200px;"></textarea>
+          <label for="answer">A: </label><textarea th:text="${faq.answer}" id="answer" name="answer"></textarea>
         </div>
       <!-- 게시글 수정, 삭제, 목록으로 돌아가기 버튼 -->
           <div class="form-actions" th:if="${faq.deletedYn.equals('Y')}">
@@ -41,7 +41,7 @@
         <script type="text/javascript">
           $(document).ready(function(){
             $("#list").on("click", function(){
-              location.href = "/admin_faq";
+            	location.href = "/admin/admin_faq";
             });
 
             $("#edit").on("click", function(){
@@ -63,6 +63,6 @@
   </div>
 </div>
 <div class="footers"></div> <!-- 이거 지우면 안됨 -->
-<th:block th:replace="/layout/footer :: footerLayout"></th:block>
+<th:block th:replace="layout/footer :: footerLayout"></th:block>
 </body>
 </html>
